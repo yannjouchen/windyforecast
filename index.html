@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>仁武即時防災雨量儀表板</title>
+  <title>仁武即時防災雨量儀表板 v2</title>
   <style>
     :root{
       --bg:#0b1020; --panel:#141b2d; --panel2:#1b2438; --text:#eef3ff; --muted:#9fb0cf;
@@ -45,7 +45,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>仁武即時防災雨量儀表板</h1>
+  <h1>仁武即時防災雨量儀表板 v2</h1>
   <div class="sub">Windy 未來降雨 × 中央氣象署豪大雨門檻｜預設位置：高雄市仁武區</div>
 
   <div class="grid">
@@ -95,7 +95,7 @@
           <tr><th>級別</th><th>官方雨量條件</th><th>目前預測比較</th><th>距門檻</th></tr>
         </thead>
         <tbody id="thresholdBody">
-          <tr><td>大雨</td><td>1h ≥ 40 mm 或 24h ≥ 80 mm</td><td>—</td><td>—</td></tr>
+          <tr><td>大雨</td><td>1h ≥ 40 mm 或 24h ≥ 80 mm</td><td>1h：Windy 3h 資料無法直接判定</td><td>—</td></tr>
           <tr><td>豪雨</td><td>3h ≥ 100 mm 或 24h ≥ 200 mm</td><td>—</td><td>—</td></tr>
           <tr><td>大豪雨</td><td>3h ≥ 200 mm 或 24h ≥ 350 mm</td><td>—</td><td>—</td></tr>
           <tr><td>超大豪雨</td><td>24h ≥ 500 mm</td><td>—</td><td>—</td></tr>
@@ -106,7 +106,7 @@
     <section class="card span12">
       <h2 style="margin-top:0">說明</h2>
       <div class="note">
-        Windy Point Forecast 的 <span class="mono">past3hprecip-surface</span> 是「前 3 小時累積降水」，本頁將未來資料依序加總成 6／12／24 小時。<br>
+        Windy Point Forecast 的 <span class="mono">past3hprecip-surface</span> 是「前 3 小時累積降水」。API 常以公尺（m）回傳，本頁會依 <span class="mono">units</span> 自動換算成毫米（mm）：m × 1000 → mm，再依序加總成 3／6／12／24 小時。<br>
         由於 Windy 是模型預報，局部午後雷雨可能有明顯誤差；防災時應同時參考中央氣象署實測雨量與正式警特報。<br>
         本頁不會把 API Key 寫入檔案或瀏覽器儲存空間；重新整理頁面後會清空。
       </div>
@@ -161,14 +161,39 @@ function drawChart(values, labels){
   });
 }
 
-function updateThresholds(r3,r24){
+function updateThresholds(max3h,r24){
+  const d80=Math.max(0,80-r24);
+  const h3=Math.max(0,100-max3h), h24=Math.max(0,200-r24);
+  const vh3=Math.max(0,200-max3h), vh24=Math.max(0,350-r24);
+  const e24=Math.max(0,500-r24);
+
   const rows=[
-    ["大雨","1h ≥ 40 mm 或 24h ≥ 80 mm",r24>=80 ? "24h 預測達標":"未達", Math.max(0,80-r24)],
-    ["豪雨","3h ≥ 100 mm 或 24h ≥ 200 mm",(r3>=100||r24>=200)?"預測達標":"未達",Math.min(Math.max(0,100-r3),Math.max(0,200-r24))],
-    ["大豪雨","3h ≥ 200 mm 或 24h ≥ 350 mm",(r3>=200||r24>=350)?"預測達標":"未達",Math.min(Math.max(0,200-r3),Math.max(0,350-r24))],
-    ["超大豪雨","24h ≥ 500 mm",r24>=500?"預測達標":"未達",Math.max(0,500-r24)]
+    [
+      "大雨",
+      "1h ≥ 40 mm 或 24h ≥ 80 mm",
+      r24>=80 ? "24h 預測達標；1h 無法由 3h 資料直接判定" : "24h 未達；1h 無法由 3h 資料直接判定",
+      r24>=80 ? "24h 已達門檻" : `24h 尚差 ${d80.toFixed(1)} mm`
+    ],
+    [
+      "豪雨",
+      "3h ≥ 100 mm 或 24h ≥ 200 mm",
+      (max3h>=100||r24>=200) ? "預測達標" : "未達",
+      (max3h>=100||r24>=200) ? "已達至少一項門檻" : `3h 尚差 ${h3.toFixed(1)} mm；24h 尚差 ${h24.toFixed(1)} mm`
+    ],
+    [
+      "大豪雨",
+      "3h ≥ 200 mm 或 24h ≥ 350 mm",
+      (max3h>=200||r24>=350) ? "預測達標" : "未達",
+      (max3h>=200||r24>=350) ? "已達至少一項門檻" : `3h 尚差 ${vh3.toFixed(1)} mm；24h 尚差 ${vh24.toFixed(1)} mm`
+    ],
+    [
+      "超大豪雨",
+      "24h ≥ 500 mm",
+      r24>=500 ? "預測達標" : "未達",
+      r24>=500 ? "已達門檻" : `24h 尚差 ${e24.toFixed(1)} mm`
+    ]
   ];
-  $("thresholdBody").innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3].toFixed(1)} mm</td></tr>`).join("");
+  $("thresholdBody").innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join("");
 }
 
 $("updateBtn").addEventListener("click", async ()=>{
@@ -192,27 +217,76 @@ $("updateBtn").addEventListener("click", async ()=>{
     const ts=data.ts;
     if(!Array.isArray(arr)||!Array.isArray(ts)) throw new Error("Windy 回傳格式中找不到 past3hprecip-surface 或 ts。");
 
+    // Windy Point Forecast precipitation may be returned in meters.
+    // Convert to millimeters before any accumulation:
+    // 1 m = 1000 mm.
+    const sourceUnit=(data.units && data.units["past3hprecip-surface"]) || "unknown";
+    const toMm = (value)=>{
+      const n=Number(value);
+      if(!Number.isFinite(n)) return NaN;
+      if(sourceUnit==="m") return n*1000;
+      if(sourceUnit==="mm") return n;
+      // Unknown unit: do not silently assume meters.
+      return NaN;
+    };
+
+    if(sourceUnit!=="m" && sourceUnit!=="mm"){
+      throw new Error("無法辨識 Windy 降雨單位："+sourceUnit+"。為避免錯誤換算，已停止計算。");
+    }
+
     const now=Date.now();
-    const pts=ts.map((t,i)=>({t:Number(t),v:Number(arr[i])})).filter(x=>Number.isFinite(x.v) && x.t>=now-3*3600*1000);
-    pts.sort((a,b)=>a.t-b.t);
+    const pts=ts.map((t,i)=>({t:Number(t),v:toMm(arr[i])}))
+      .filter(x=>Number.isFinite(x.v) && Number.isFinite(x.t))
+      .sort((a,b)=>a.t-b.t);
 
-    // Use future buckets only; each value represents prior 3h precip.
+    // Each point is a 3-hour precipitation bucket ending at its timestamp.
+    // Take the next 8 forecast buckets = up to 24 hours.
     const future=pts.filter(x=>x.t>now).slice(0,8);
-    const vals=future.map(x=>x.v);
-    const sum=n=>vals.slice(0,n).reduce((a,b)=>a+b,0);
-    const r3=sum(1), r6=sum(2), r12=sum(4), r24=sum(8);
+    if(future.length<1) throw new Error("Windy 沒有回傳可用的未來降雨資料。");
 
-    $("r3").textContent=fmt(r3); $("r6").textContent=fmt(r6); $("r12").textContent=fmt(r12); $("r24").textContent=fmt(r24);
-    const [lvl,msg]=classify(r3,r24);
-    $("riskBox").innerHTML=`<span class="pill ${riskClass(lvl)}">${msg}</span><br><br>3h：${fmt(r3)} mm<br>24h：${fmt(r24)} mm`;
-    updateThresholds(r3,r24);
+    const vals=future.map(x=>x.v); // already mm
+    const sum=n=>vals.slice(0,Math.min(n,vals.length)).reduce((a,b)=>a+b,0);
+
+    // m → mm → 3h → 6h → 12h → 24h
+    const r3=sum(1);
+    const r6=sum(2);
+    const r12=sum(4);
+    const r24=sum(8);
+
+    // For official 3-hour thresholds, use the largest forecast 3h bucket
+    // within the next 24 hours, not only the first bucket.
+    const max3h=Math.max(...vals);
+
+    $("r3").textContent=fmt(r3);
+    $("r6").textContent=fmt(r6);
+    $("r12").textContent=fmt(r12);
+    $("r24").textContent=fmt(r24);
+
+    const [lvl,msg]=classify(max3h,r24);
+    $("riskBox").innerHTML=
+      `<span class="pill ${riskClass(lvl)}">${msg}</span><br><br>`+
+      `未來首個 3h：${fmt(r3)} mm<br>`+
+      `24h 內最大單一 3h：${fmt(max3h)} mm<br>`+
+      `未來 6h：${fmt(r6)} mm<br>`+
+      `未來 12h：${fmt(r12)} mm<br>`+
+      `未來 24h：${fmt(r24)} mm`;
+
+    updateThresholds(max3h,r24);
 
     const labels=future.map(x=>{
       const d=new Date(x.t);
       return String(d.getHours()).padStart(2,"0")+":00";
     });
     drawChart(vals,labels);
-    $("status").textContent=`更新完成｜模式：${model.toUpperCase()}｜座標：${lat}, ${lon}｜資料點：${future.length}`;
+
+    const testingWarning = data.warning
+      ? `\n⚠️ Windy API 警告：${data.warning}`
+      : "";
+
+    $("status").textContent=
+      `更新完成｜模式：${model.toUpperCase()}｜座標：${lat}, ${lon}`+
+      `｜原始單位：${sourceUnit}｜已換算：mm｜3h資料點：${future.length}`+
+      testingWarning;
   }catch(err){
     console.error(err);
     $("status").textContent="讀取失敗："+err.message+"\n\n若瀏覽器顯示 CORS 錯誤，代表 Windy 不允許此網頁直接跨網域呼叫；這時需要加一個很小的後端代理。";
