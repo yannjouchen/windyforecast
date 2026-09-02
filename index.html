@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>仁武防災雨量儀表板 v7</title>
+<title>仁武防災雨量儀表板 v7 自動更新版</title>
 <style>
 :root{
   color-scheme:dark;
@@ -52,9 +52,10 @@ a{color:#9bbcff}
 </head>
 <body>
 <div class="wrap">
-  <h1>仁武即時防災雨量儀表板 v7</h1>
+  <h1>仁武即時防災雨量儀表板 v7｜自動更新版</h1>
   <div class="sub">中央氣象署仁武實測 × GFS + ICON 未來雨量 × Windy Testing 選配<br>
-  預設位置：高雄市仁武區｜22.705864872692686, 120.33468473266137</div>
+  預設位置：高雄市仁武區｜22.705864872692686, 120.33468473266137<br>
+  自動更新：中央氣象署每 10 分鐘｜GFS + ICON 每 60 分鐘</div>
 
   <section class="card">
     <h2>位置與更新</h2>
@@ -64,6 +65,7 @@ a{color:#9bbcff}
       <button id="refresh">更新 GFS + ICON</button>
     </div>
     <div id="mainStatus" class="status">尚未更新。</div>
+    <div id="autoStatus" class="status">自動更新已啟用｜CWA：10 分鐘｜GFS/ICON：60 分鐘</div>
   </section>
 
   <section class="card">
@@ -562,9 +564,81 @@ $("refresh").addEventListener("click",updateFree);
 $("cwaBtn").addEventListener("click",updateCwa);
 $("windyBtn").addEventListener("click",updateWindy);
 
-// 開啟頁面自動載入 GFS / ICON 與中央氣象署仁武實測。
-updateFree();
-updateCwa();
+// ---------- Auto refresh ----------
+const CWA_REFRESH_MS = 10 * 60 * 1000;       // 10 minutes
+const MODEL_REFRESH_MS = 60 * 60 * 1000;     // 60 minutes
+
+let lastCwaAutoUpdate = null;
+let lastModelAutoUpdate = null;
+
+function formatClock(d){
+  if(!d) return "尚未";
+  return d.toLocaleString("zh-TW",{
+    hour12:false,
+    month:"2-digit",
+    day:"2-digit",
+    hour:"2-digit",
+    minute:"2-digit",
+    second:"2-digit"
+  });
+}
+
+function refreshAutoStatus(){
+  const nextCwa = lastCwaAutoUpdate
+    ? new Date(lastCwaAutoUpdate.getTime() + CWA_REFRESH_MS)
+    : null;
+  const nextModel = lastModelAutoUpdate
+    ? new Date(lastModelAutoUpdate.getTime() + MODEL_REFRESH_MS)
+    : null;
+
+  $("autoStatus").textContent =
+    `自動更新已啟用\n` +
+    `中央氣象署：每 10 分鐘｜上次：${formatClock(lastCwaAutoUpdate)}｜下次：約 ${formatClock(nextCwa)}\n` +
+    `GFS + ICON：每 60 分鐘｜上次：${formatClock(lastModelAutoUpdate)}｜下次：約 ${formatClock(nextModel)}`;
+}
+
+async function autoUpdateCwa(){
+  try{
+    await updateCwa();
+  }finally{
+    lastCwaAutoUpdate = new Date();
+    refreshAutoStatus();
+  }
+}
+
+async function autoUpdateModels(){
+  try{
+    await updateFree();
+  }finally{
+    lastModelAutoUpdate = new Date();
+    refreshAutoStatus();
+  }
+}
+
+// Open page: update immediately.
+autoUpdateModels();
+autoUpdateCwa();
+
+// Keep updating while the page remains open.
+setInterval(autoUpdateCwa, CWA_REFRESH_MS);
+setInterval(autoUpdateModels, MODEL_REFRESH_MS);
+
+// If the browser/tab was suspended in the background, refresh stale data
+// as soon as the user returns to the page.
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState!=="visible") return;
+
+  const now=Date.now();
+
+  if(!lastCwaAutoUpdate || now-lastCwaAutoUpdate.getTime() >= CWA_REFRESH_MS){
+    autoUpdateCwa();
+  }
+  if(!lastModelAutoUpdate || now-lastModelAutoUpdate.getTime() >= MODEL_REFRESH_MS){
+    autoUpdateModels();
+  }
+});
+
+refreshAutoStatus();
 </script>
 </body>
 </html>
