@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>仁武即時防災雨量儀表板</title>
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#141b2d; --panel2:#1b2438; --text:#eef3ff; --muted:#9fb0cf;
+      --border:#2a3857; --good:#2fbf71; --warn:#f0b429; --alert:#f07d2f; --danger:#e84a5f; --accent:#68a7ff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,"Segoe UI","Noto Sans TC",sans-serif;background:var(--bg);color:var(--text)}
+    .wrap{max-width:1180px;margin:0 auto;padding:22px}
+    h1{font-size:28px;margin:0 0 8px}
+    .sub{color:var(--muted);margin-bottom:22px}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px}
+    .span12{grid-column:span 12}.span8{grid-column:span 8}.span6{grid-column:span 6}.span4{grid-column:span 4}
+    @media(max-width:850px){.span8,.span6,.span4{grid-column:span 12}}
+    label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
+    input,button{font:inherit}
+    input{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--border);background:#0f1628;color:var(--text)}
+    button{padding:11px 16px;border:0;border-radius:10px;background:var(--accent);color:#07101f;font-weight:700;cursor:pointer}
+    button.secondary{background:#2a3857;color:var(--text)}
+    .row{display:flex;gap:10px;align-items:end}.row>*{flex:1}
+    .status{padding:10px 12px;border-radius:10px;background:var(--panel2);color:var(--muted);margin-top:12px;white-space:pre-wrap}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    @media(max-width:700px){.kpis{grid-template-columns:repeat(2,1fr)}}
+    .kpi{background:var(--panel2);border-radius:12px;padding:14px}
+    .kpi .v{font-size:28px;font-weight:800;margin-top:6px}
+    .kpi .s{color:var(--muted);font-size:12px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px 8px;border-bottom:1px solid var(--border);text-align:left}
+    th{color:var(--muted);font-size:13px}
+    .pill{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700}
+    .p-good{background:rgba(47,191,113,.18);color:#79dfa6}
+    .p-warn{background:rgba(240,180,41,.18);color:#ffd46b}
+    .p-alert{background:rgba(240,125,47,.18);color:#ffad75}
+    .p-danger{background:rgba(232,74,95,.18);color:#ff899a}
+    canvas{width:100%;height:300px;background:#0f1628;border-radius:12px}
+    .note{font-size:13px;color:var(--muted);line-height:1.6}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>仁武即時防災雨量儀表板</h1>
+  <div class="sub">Windy 未來降雨 × 中央氣象署豪大雨門檻｜預設位置：高雄市仁武區</div>
+
+  <div class="grid">
+    <section class="card span12">
+      <div class="row">
+        <div>
+          <label>Windy API Key（僅保留在本頁記憶體，不會儲存）</label>
+          <input id="apiKey" type="password" placeholder="貼上 Windy API Key" autocomplete="off" />
+        </div>
+        <div style="max-width:210px">
+          <button id="updateBtn" style="width:100%">更新預報</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div><label>緯度</label><input id="lat" value="22.7019" /></div>
+        <div><label>經度</label><input id="lon" value="120.3605" /></div>
+        <div><label>模式</label><input id="model" value="gfs" /></div>
+      </div>
+      <div id="status" class="status">尚未讀取資料。</div>
+    </section>
+
+    <section class="card span8">
+      <h2 style="margin-top:0">未來累積降雨量</h2>
+      <div class="kpis">
+        <div class="kpi"><div>3 小時</div><div id="r3" class="v">—</div><div class="s">mm</div></div>
+        <div class="kpi"><div>6 小時</div><div id="r6" class="v">—</div><div class="s">mm</div></div>
+        <div class="kpi"><div>12 小時</div><div id="r12" class="v">—</div><div class="s">mm</div></div>
+        <div class="kpi"><div>24 小時</div><div id="r24" class="v">—</div><div class="s">mm</div></div>
+      </div>
+      <h3>降雨趨勢</h3>
+      <canvas id="chart" width="1000" height="300"></canvas>
+      <div class="note">折線顯示 Windy 回傳的每 3 小時累積降水量。若資料間隔不同，頁面會依時間排序後取最接近的未來時段。</div>
+    </section>
+
+    <section class="card span4">
+      <h2 style="margin-top:0">目前風險判讀</h2>
+      <div id="riskBox" class="status">尚無資料。</div>
+      <div class="note" style="margin-top:12px">
+        這裡的「預測達門檻」不是政府正式發布警報。正式豪大雨特報仍應以中央氣象署公告為準。
+      </div>
+    </section>
+
+    <section class="card span12">
+      <h2 style="margin-top:0">政府豪大雨門檻對照</h2>
+      <table>
+        <thead>
+          <tr><th>級別</th><th>官方雨量條件</th><th>目前預測比較</th><th>距門檻</th></tr>
+        </thead>
+        <tbody id="thresholdBody">
+          <tr><td>大雨</td><td>1h ≥ 40 mm 或 24h ≥ 80 mm</td><td>—</td><td>—</td></tr>
+          <tr><td>豪雨</td><td>3h ≥ 100 mm 或 24h ≥ 200 mm</td><td>—</td><td>—</td></tr>
+          <tr><td>大豪雨</td><td>3h ≥ 200 mm 或 24h ≥ 350 mm</td><td>—</td><td>—</td></tr>
+          <tr><td>超大豪雨</td><td>24h ≥ 500 mm</td><td>—</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card span12">
+      <h2 style="margin-top:0">說明</h2>
+      <div class="note">
+        Windy Point Forecast 的 <span class="mono">past3hprecip-surface</span> 是「前 3 小時累積降水」，本頁將未來資料依序加總成 6／12／24 小時。<br>
+        由於 Windy 是模型預報，局部午後雷雨可能有明顯誤差；防災時應同時參考中央氣象署實測雨量與正式警特報。<br>
+        本頁不會把 API Key 寫入檔案或瀏覽器儲存空間；重新整理頁面後會清空。
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function fmt(x){ return Number.isFinite(x) ? x.toFixed(1) : "—"; }
+
+function riskClass(level){
+  return level==="danger"?"p-danger":level==="alert"?"p-alert":level==="warn"?"p-warn":"p-good";
+}
+
+function classify(r3,r24){
+  if (r24>=500) return ["danger","預測達「超大豪雨」24h 門檻"];
+  if (r3>=200 || r24>=350) return ["danger","預測達「大豪雨」門檻"];
+  if (r3>=100 || r24>=200) return ["alert","預測達「豪雨」門檻"];
+  if (r24>=80) return ["warn","預測達「大雨」24h 門檻"];
+  if (r3>=80 || r24>=65) return ["alert","高度接近官方門檻"];
+  if (r3>=50 || r24>=50) return ["warn","降雨偏強，建議提高警戒"];
+  return ["good","目前未接近主要豪雨門檻"];
+}
+
+function drawChart(values, labels){
+  const c=$("chart"), ctx=c.getContext("2d");
+  const W=c.width,H=c.height,pad=45;
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle="#2a3857"; ctx.fillStyle="#9fb0cf"; ctx.font="14px system-ui";
+  const max=Math.max(10,...values)*1.15;
+  for(let i=0;i<=4;i++){
+    const y=pad+(H-pad*2)*i/4;
+    ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(W-pad,y);ctx.stroke();
+    const val=max*(1-i/4);
+    ctx.fillText(val.toFixed(0)+" mm",5,y+4);
+  }
+  if(!values.length) return;
+  ctx.strokeStyle="#68a7ff";ctx.lineWidth=3;ctx.beginPath();
+  values.forEach((v,i)=>{
+    const x=pad+(W-pad*2)*(values.length===1?0:i/(values.length-1));
+    const y=H-pad-(v/max)*(H-pad*2);
+    if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });ctx.stroke();
+  ctx.fillStyle="#eef3ff";
+  values.forEach((v,i)=>{
+    const x=pad+(W-pad*2)*(values.length===1?0:i/(values.length-1));
+    const y=H-pad-(v/max)*(H-pad*2);
+    ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();
+    if(i%2===0 || values.length<=6) ctx.fillText(labels[i]||"",x-18,H-12);
+  });
+}
+
+function updateThresholds(r3,r24){
+  const rows=[
+    ["大雨","1h ≥ 40 mm 或 24h ≥ 80 mm",r24>=80 ? "24h 預測達標":"未達", Math.max(0,80-r24)],
+    ["豪雨","3h ≥ 100 mm 或 24h ≥ 200 mm",(r3>=100||r24>=200)?"預測達標":"未達",Math.min(Math.max(0,100-r3),Math.max(0,200-r24))],
+    ["大豪雨","3h ≥ 200 mm 或 24h ≥ 350 mm",(r3>=200||r24>=350)?"預測達標":"未達",Math.min(Math.max(0,200-r3),Math.max(0,350-r24))],
+    ["超大豪雨","24h ≥ 500 mm",r24>=500?"預測達標":"未達",Math.max(0,500-r24)]
+  ];
+  $("thresholdBody").innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3].toFixed(1)} mm</td></tr>`).join("");
+}
+
+$("updateBtn").addEventListener("click", async ()=>{
+  const key=$("apiKey").value.trim(), lat=parseFloat($("lat").value), lon=parseFloat($("lon").value), model=$("model").value.trim()||"gfs";
+  if(!key){$("status").textContent="請先輸入 Windy API Key。";return;}
+  $("status").textContent="正在向 Windy 讀取預報…";
+  try{
+    const resp=await fetch("https://api.windy.com/api/point-forecast/v2",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        lat, lon, model,
+        parameters:["precip"],
+        levels:["surface"],
+        key
+      })
+    });
+    if(!resp.ok) throw new Error("HTTP "+resp.status+" "+await resp.text());
+    const data=await resp.json();
+    const arr=data["past3hprecip-surface"];
+    const ts=data.ts;
+    if(!Array.isArray(arr)||!Array.isArray(ts)) throw new Error("Windy 回傳格式中找不到 past3hprecip-surface 或 ts。");
+
+    const now=Date.now();
+    const pts=ts.map((t,i)=>({t:Number(t),v:Number(arr[i])})).filter(x=>Number.isFinite(x.v) && x.t>=now-3*3600*1000);
+    pts.sort((a,b)=>a.t-b.t);
+
+    // Use future buckets only; each value represents prior 3h precip.
+    const future=pts.filter(x=>x.t>now).slice(0,8);
+    const vals=future.map(x=>x.v);
+    const sum=n=>vals.slice(0,n).reduce((a,b)=>a+b,0);
+    const r3=sum(1), r6=sum(2), r12=sum(4), r24=sum(8);
+
+    $("r3").textContent=fmt(r3); $("r6").textContent=fmt(r6); $("r12").textContent=fmt(r12); $("r24").textContent=fmt(r24);
+    const [lvl,msg]=classify(r3,r24);
+    $("riskBox").innerHTML=`<span class="pill ${riskClass(lvl)}">${msg}</span><br><br>3h：${fmt(r3)} mm<br>24h：${fmt(r24)} mm`;
+    updateThresholds(r3,r24);
+
+    const labels=future.map(x=>{
+      const d=new Date(x.t);
+      return String(d.getHours()).padStart(2,"0")+":00";
+    });
+    drawChart(vals,labels);
+    $("status").textContent=`更新完成｜模式：${model.toUpperCase()}｜座標：${lat}, ${lon}｜資料點：${future.length}`;
+  }catch(err){
+    console.error(err);
+    $("status").textContent="讀取失敗："+err.message+"\n\n若瀏覽器顯示 CORS 錯誤，代表 Windy 不允許此網頁直接跨網域呼叫；這時需要加一個很小的後端代理。";
+  }
+});
+</script>
+</body>
+</html>
