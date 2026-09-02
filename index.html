@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>仁武防災雨量儀表板 v3</title>
+<title>仁武防災雨量儀表板 v4</title>
 <style>
 :root{
   color-scheme:dark;
@@ -12,7 +12,7 @@
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;color:var(--text)}
-.wrap{max-width:980px;margin:auto;padding:26px 18px 48px}
+.wrap{max-width:1040px;margin:auto;padding:26px 18px 48px}
 h1{font-size:34px;margin:0 0 8px} h2{font-size:25px;margin:0 0 18px} h3{margin:0 0 10px}
 .sub,.muted{color:var(--muted);line-height:1.55}
 .card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:20px;margin-top:18px}
@@ -27,43 +27,69 @@ button.secondary{background:#263552;color:var(--text);border:1px solid var(--lin
 .modelhead{display:flex;justify-content:space-between;gap:10px;align-items:center}
 .tag{font-size:12px;padding:5px 9px;border-radius:999px;background:#263552;color:#cbd8f8}
 .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:14px 0}
-.kpi{background:#11192b;border-radius:13px;padding:10px;text-align:center}
-.kpi .v{font-size:22px;font-weight:750;margin-top:5px}.kpi .l{font-size:12px;color:var(--muted)}
+.kpis.obs{grid-template-columns:repeat(6,1fr)}
+.kpi{background:#11192b;border-radius:13px;padding:10px;text-align:center;min-width:0}
+.kpi .v{font-size:22px;font-weight:750;margin-top:5px;word-break:break-word}.kpi .l{font-size:12px;color:var(--muted)}
 .risk{padding:11px 12px;border-radius:12px;background:#11192b;line-height:1.55}
 .ok{color:var(--ok)} .warning{color:var(--warn)} .danger{color:var(--danger)}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 th{color:var(--muted);font-weight:600}
 .status{margin-top:12px;background:#11192b;padding:12px;border-radius:12px;color:var(--muted);white-space:pre-wrap;line-height:1.5}
-.windgrid{display:grid;grid-template-columns:1fr auto;gap:10px}
+.keygrid{display:grid;grid-template-columns:1fr auto;gap:10px}
 .compare{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .box{background:#11192b;padding:13px;border-radius:13px}
 .big{font-size:25px;font-weight:750}
+.smallnote{font-size:12px;color:var(--muted);margin-top:5px}
 footer{margin-top:22px;color:var(--muted);font-size:13px;line-height:1.6}
-@media(max-width:720px){
+a{color:#9bbcff}
+@media(max-width:760px){
  h1{font-size:28px}.grid2,.compare{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}.controls button{grid-column:1/-1}
- .kpis{grid-template-columns:repeat(2,1fr)} .windgrid{grid-template-columns:1fr}
+ .kpis,.kpis.obs{grid-template-columns:repeat(2,1fr)} .keygrid{grid-template-columns:1fr}
  table{font-size:12px}
 }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>仁武即時防災雨量儀表板 v3</h1>
-  <div class="sub">免費 GFS + ICON 真實預報比較 × Windy Testing 選配 × 中央氣象署雨量門檻<br>預設位置：高雄市仁武區</div>
+  <h1>仁武即時防災雨量儀表板 v4</h1>
+  <div class="sub">中央氣象署仁武實測 × GFS + ICON 未來雨量 × Windy Testing 選配<br>
+  預設位置：高雄市仁武區｜22.705864872692686, 120.33468473266137</div>
 
   <section class="card">
     <h2>位置與更新</h2>
     <div class="controls">
-      <div><label>緯度</label><input id="lat" value="22.7019" inputmode="decimal"></div>
-      <div><label>經度</label><input id="lon" value="120.3605" inputmode="decimal"></div>
+      <div><label>緯度</label><input id="lat" value="22.705864872692686" inputmode="decimal"></div>
+      <div><label>經度</label><input id="lon" value="120.33468473266137" inputmode="decimal"></div>
       <button id="refresh">更新 GFS + ICON</button>
     </div>
     <div id="mainStatus" class="status">尚未更新。</div>
   </section>
 
   <section class="card">
-    <h2>免費模型比較</h2>
+    <h2>中央氣象署仁武站 C0V680｜即時實測</h2>
+    <div class="muted">
+      仁武站位於仁武區公所，官方站點約 22.701083, 120.347722；距目前預設位置約 1.44 km。
+      CWA O-A0002-001 提供逐 10 分鐘更新的雨量觀測。
+    </div>
+    <div class="keygrid" style="margin-top:14px">
+      <input id="cwaKey" type="password" placeholder="貼上中央氣象署 Open Data 授權碼（CWA-...）">
+      <button id="cwaBtn" class="secondary">更新仁武實測</button>
+    </div>
+    <div class="kpis obs">
+      <div class="kpi"><div class="l">過去 10 分</div><div class="v" id="cwa10">—</div></div>
+      <div class="kpi"><div class="l">過去 1h</div><div class="v" id="cwa1">—</div></div>
+      <div class="kpi"><div class="l">過去 3h</div><div class="v" id="cwa3">—</div></div>
+      <div class="kpi"><div class="l">過去 6h</div><div class="v" id="cwa6">—</div></div>
+      <div class="kpi"><div class="l">過去 12h</div><div class="v" id="cwa12">—</div></div>
+      <div class="kpi"><div class="l">過去 24h</div><div class="v" id="cwa24">—</div></div>
+    </div>
+    <div class="risk" id="cwaRisk">等待中央氣象署實測資料</div>
+    <div id="cwaStatus" class="status">需要中央氣象署免費 Open Data 授權碼。授權碼只存在本頁記憶體，不會寫入檔案或 localStorage。</div>
+  </section>
+
+  <section class="card">
+    <h2>免費模型預報比較</h2>
     <div class="grid2">
       <div class="model" id="gfsCard">
         <div class="modelhead"><h3>NOAA GFS</h3><span class="tag">免費・免 Key</span></div>
@@ -94,15 +120,15 @@ footer{margin-top:22px;color:var(--muted);font-size:13px;line-height:1.6}
   <section class="card">
     <h2>24 小時模型差異</h2>
     <div class="compare">
-      <div class="box"><div class="muted">GFS 24h</div><div class="big" id="cmpGfs">—</div></div>
-      <div class="box"><div class="muted">ICON 24h</div><div class="big" id="cmpIcon">—</div></div>
+      <div class="box"><div class="muted">GFS 未來 24h</div><div class="big" id="cmpGfs">—</div></div>
+      <div class="box"><div class="muted">ICON 未來 24h</div><div class="big" id="cmpIcon">—</div></div>
       <div class="box"><div class="muted">兩模型差距</div><div class="big" id="cmpDiff">—</div></div>
     </div>
     <div class="status" id="compareNote">模型有差異是正常的。對流性強降雨時，單點預報誤差可能很大，應搭配雷達、觀測雨量與官方警報。</div>
   </section>
 
   <section class="card">
-    <h2>中央氣象署雨量門檻對照</h2>
+    <h2>中央氣象署雨量門檻｜未來模型預報對照</h2>
     <table>
       <thead><tr><th>等級</th><th>官方門檻</th><th>GFS</th><th>ICON</th></tr></thead>
       <tbody id="thresholdBody">
@@ -112,13 +138,19 @@ footer{margin-top:22px;color:var(--muted);font-size:13px;line-height:1.6}
         <tr><td>超大豪雨</td><td>24h ≥ 500 mm</td><td>—</td><td>—</td></tr>
       </tbody>
     </table>
-    <div class="muted" style="margin-top:12px">判斷採「未來 24 小時內最大 1 小時雨量」、「任意連續 3 小時最大累積」與「未來 24 小時累積」比較。這是模型預報對照，不等於氣象署已發布警報。</div>
+    <div class="muted" style="margin-top:12px">
+      預報判斷採「未來 24 小時內最大 1 小時」、「任意連續 3 小時最大累積」與「未來 24 小時累積」比較。
+      這只是模型對照，不代表中央氣象署已發布警報。
+    </div>
   </section>
 
   <section class="card">
     <h2>Windy Testing（選配）</h2>
-    <div class="muted" style="margin-bottom:12px">你可以繼續貼 Testing Point Forecast key 做格式與流程比較。Key 只存在本頁記憶體，不寫入檔案或 localStorage。Testing 資料本身會被 Windy 打亂，不可拿來驗證哪個模型比較準。</div>
-    <div class="windgrid">
+    <div class="muted" style="margin-bottom:12px">
+      可繼續用 Testing Point Forecast key 測試流程。Windy 若回傳單位 m，本頁會自動做 m × 1000 → mm。
+      Testing 資料會被 Windy 打亂，不適合拿來做實際防災判斷。
+    </div>
+    <div class="keygrid">
       <input id="windyKey" type="password" placeholder="貼上 Windy Point Forecast API key">
       <button id="windyBtn" class="secondary">更新 Windy</button>
     </div>
@@ -133,7 +165,9 @@ footer{margin-top:22px;color:var(--muted);font-size:13px;line-height:1.6}
   </section>
 
   <footer>
-    GFS 資料來源：Open-Meteo NOAA GFS API；ICON 資料來源：Open-Meteo DWD ICON API。兩者的 precipitation 為前一小時累積且單位為 mm。本頁僅做預報輔助與開發測試，不取代中央氣象署正式警特報或現地防災決策。
+    中央氣象署實測：O-A0002-001（仁武站 C0V680）。GFS：Open-Meteo NOAA GFS API。ICON：Open-Meteo DWD ICON API。
+    實測值與預報值的時間意義不同，因此本頁不會直接把「過去 24h 實測」與「未來 24h 預報」相加後當作官方 24h 門檻。
+    本頁為預報與防災輔助工具，不取代中央氣象署正式警特報。
   </footer>
 </div>
 
@@ -141,15 +175,19 @@ footer{margin-top:22px;color:var(--muted);font-size:13px;line-height:1.6}
 const $=id=>document.getElementById(id);
 const fmt=n=>Number.isFinite(n)?`${n.toFixed(n>=100?0:1)} mm`:"—";
 const sum=(a,n)=>a.slice(0,Math.min(n,a.length)).reduce((x,y)=>x+y,0);
+
 const rollingMax=(arr,n)=>{
+  if(!arr.length) return 0;
   if(arr.length<n) return arr.reduce((x,y)=>x+y,0);
   let m=0;
   for(let i=0;i<=arr.length-n;i++){
-    let s=0; for(let j=0;j<n;j++) s+=arr[i+j];
+    let s=0;
+    for(let j=0;j<n;j++) s+=arr[i+j];
     if(s>m)m=s;
   }
   return m;
 };
+
 function riskText(max1,max3,r24){
   if(r24>=500) return ["danger","超大豪雨門檻：24h ≥ 500 mm"];
   if(max3>=200||r24>=350) return ["danger","大豪雨門檻"];
@@ -157,6 +195,7 @@ function riskText(max1,max3,r24){
   if(max1>=40||r24>=80) return ["warning","大雨門檻"];
   return ["ok","目前未達氣象署大雨量級門檻"];
 }
+
 function evaluate(arr){
   const next24=arr.slice(0,24);
   const max1=Math.max(0,...next24);
@@ -164,6 +203,7 @@ function evaluate(arr){
   const r1=sum(next24,1),r3=sum(next24,3),r6=sum(next24,6),r12=sum(next24,12),r24=sum(next24,24);
   return {r1,r3,r6,r12,r24,max1,max3};
 }
+
 function renderModel(prefix,r){
   ["1","3","6","12","24"].forEach(k=>$(prefix+k).textContent=fmt(r["r"+k]));
   const [cls,txt]=riskText(r.max1,r.max3,r.r24);
@@ -172,12 +212,14 @@ function renderModel(prefix,r){
     `24h 內最大連續 3h：${fmt(r.max3)}<br>`+
     `未來 24h：${fmt(r.r24)}`;
 }
+
 function thresholdCell(r,kind){
   if(kind==="heavy") return (r.max1>=40||r.r24>=80) ? "達門檻" : `未達（1h max ${r.max1.toFixed(1)} / 24h ${r.r24.toFixed(1)}）`;
   if(kind==="torrential") return (r.max3>=100||r.r24>=200) ? "達門檻" : `未達（3h max ${r.max3.toFixed(1)} / 24h ${r.r24.toFixed(1)}）`;
   if(kind==="very") return (r.max3>=200||r.r24>=350) ? "達門檻" : `未達（3h max ${r.max3.toFixed(1)} / 24h ${r.r24.toFixed(1)}）`;
   return r.r24>=500 ? "達門檻" : `未達（24h ${r.r24.toFixed(1)}）`;
 }
+
 function renderThresholds(g,i){
   const rows=[
     ["大雨","1h ≥ 40 或 24h ≥ 80 mm","heavy"],
@@ -187,6 +229,7 @@ function renderThresholds(g,i){
   ];
   $("thresholdBody").innerHTML=rows.map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td><td>${thresholdCell(g,x[2])}</td><td>${thresholdCell(i,x[2])}</td></tr>`).join("");
 }
+
 async function fetchOpenMeteo(endpoint,lat,lon){
   const u=new URL(endpoint);
   u.searchParams.set("latitude",lat);
@@ -210,10 +253,14 @@ async function fetchOpenMeteo(endpoint,lat,lon){
   if(!future.length) throw new Error("沒有未來資料");
   return {raw:data,vals:future,result:evaluate(future)};
 }
+
 async function updateFree(){
   const lat=parseFloat($("lat").value),lon=parseFloat($("lon").value);
-  if(!Number.isFinite(lat)||!Number.isFinite(lon)){ $("mainStatus").textContent="座標格式錯誤。"; return; }
-  $("refresh").disabled=true; $("mainStatus").textContent="正在讀取 GFS + ICON…";
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)){
+    $("mainStatus").textContent="座標格式錯誤。"; return;
+  }
+  $("refresh").disabled=true;
+  $("mainStatus").textContent="正在讀取 GFS + ICON…";
   try{
     const [gRes,iRes]=await Promise.allSettled([
       fetchOpenMeteo("https://api.open-meteo.com/v1/gfs",lat,lon),
@@ -227,26 +274,176 @@ async function updateFree(){
 
     if(g&&i){
       renderThresholds(g,i);
-      $("cmpGfs").textContent=fmt(g.r24); $("cmpIcon").textContent=fmt(i.r24);
+      $("cmpGfs").textContent=fmt(g.r24);
+      $("cmpIcon").textContent=fmt(i.r24);
       $("cmpDiff").textContent=fmt(Math.abs(g.r24-i.r24));
       const avg=(g.r24+i.r24)/2;
       const pct=avg>0?Math.abs(g.r24-i.r24)/avg*100:0;
       $("compareNote").textContent=`24h 累積差距 ${Math.abs(g.r24-i.r24).toFixed(1)} mm（約 ${pct.toFixed(0)}%）。差距越大，代表單點降雨預報不確定性越高。`;
     }
     const stamp=new Date().toLocaleString("zh-TW",{hour12:false});
-    $("mainStatus").textContent=`更新完成：${stamp}\n座標：${lat}, ${lon}\n${notes.join("\n")}`;
+    $("mainStatus").textContent=`更新完成：${stamp}\n座標：${lat}, ${lon}${notes.length?"\n"+notes.join("\n"):""}`;
   }catch(e){
     $("mainStatus").textContent="更新失敗："+e.message;
-  }finally{$("refresh").disabled=false;}
+  }finally{
+    $("refresh").disabled=false;
+  }
 }
+
+// ---------- CWA C0V680 ----------
+function findStationDeep(node){
+  if(!node) return null;
+  if(Array.isArray(node)){
+    for(const item of node){
+      const found=findStationDeep(item);
+      if(found) return found;
+    }
+    return null;
+  }
+  if(typeof node==="object"){
+    const id=node.StationId ?? node.StationID ?? node.stationId ?? node.stationID;
+    if(String(id||"").trim()==="C0V680") return node;
+    for(const value of Object.values(node)){
+      const found=findStationDeep(value);
+      if(found) return found;
+    }
+  }
+  return null;
+}
+
+function findKeyDeep(node,key){
+  if(!node || typeof node!=="object") return undefined;
+  if(Object.prototype.hasOwnProperty.call(node,key)) return node[key];
+  if(Array.isArray(node)){
+    for(const item of node){
+      const v=findKeyDeep(item,key);
+      if(v!==undefined) return v;
+    }
+  }else{
+    for(const value of Object.values(node)){
+      const v=findKeyDeep(value,key);
+      if(v!==undefined) return v;
+    }
+  }
+  return undefined;
+}
+
+function parseCwaRain(raw){
+  if(raw && typeof raw==="object"){
+    raw=raw.Precipitation ?? raw.precipitation ?? raw.Value ?? raw.value;
+  }
+  if(raw===undefined || raw===null || raw==="") return {value:NaN,label:"—"};
+  const s=String(raw).trim().toUpperCase();
+  if(s==="T") return {value:0,label:"雨跡 T"};
+  if(s==="X" || s==="-99") return {value:NaN,label:"缺值"};
+  const n=Number(s);
+  if(!Number.isFinite(n)) return {value:NaN,label:"缺值"};
+  if(n===-98) return {value:0,label:"0.0 mm"};
+  if(n<0) return {value:NaN,label:"缺值"};
+  return {value:n,label:fmt(n)};
+}
+
+function getCwaRain(station,key){
+  const rainfall=station.RainfallElement ?? station.rainfallElement ?? {};
+  const item=rainfall[key] ?? findKeyDeep(station,key);
+  return parseCwaRain(item);
+}
+
+function getObsTime(station){
+  return station?.ObsTime?.DateTime ??
+         station?.obsTime?.dateTime ??
+         findKeyDeep(station,"DateTime") ??
+         "未知";
+}
+
+function renderCwaRisk(p1,p3,p24){
+  if(!Number.isFinite(p1.value) || !Number.isFinite(p3.value) || !Number.isFinite(p24.value)){
+    $("cwaRisk").innerHTML='<strong class="warning">部分觀測值缺漏，暫不完整判定門檻。</strong>';
+    return;
+  }
+  const [cls,txt]=riskText(p1.value,p3.value,p24.value);
+  $("cwaRisk").innerHTML=`<strong class="${cls}">實測判斷：${txt}</strong><br>`+
+    `過去 1h：${fmt(p1.value)}｜過去 3h：${fmt(p3.value)}｜過去 24h：${fmt(p24.value)}<br>`+
+    `<span class="smallnote">這裡使用的是氣象署實際觀測累積值，可直接對照官方雨量定義；是否發布警報仍以氣象署正式警特報為準。</span>`;
+}
+
+async function fetchCwaJson(key,withStationFilter=true){
+  const u=new URL("https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0002-001");
+  u.searchParams.set("Authorization",key);
+  u.searchParams.set("format","JSON");
+  if(withStationFilter) u.searchParams.set("StationId","C0V680");
+  const resp=await fetch(u);
+  const text=await resp.text();
+  let data;
+  try{data=JSON.parse(text);}catch{throw new Error(`CWA 回傳非 JSON（HTTP ${resp.status}）`);}
+  if(!resp.ok) throw new Error(`CWA HTTP ${resp.status}`);
+  if(data.success===false || data.success==="false"){
+    throw new Error(data?.result?.message || "CWA API 回報失敗");
+  }
+  return data;
+}
+
+async function updateCwa(){
+  const key=$("cwaKey").value.trim();
+  if(!key){
+    $("cwaStatus").textContent="請先貼上中央氣象署 Open Data 授權碼（CWA-...）。";
+    return;
+  }
+  $("cwaBtn").disabled=true;
+  $("cwaStatus").textContent="正在讀取中央氣象署仁武站 C0V680…";
+  try{
+    let data=await fetchCwaJson(key,true);
+    let station=findStationDeep(data);
+
+    // 若 StationId 過濾參數因 API 版本差異沒有命中，退回抓整份資料再找 C0V680。
+    if(!station){
+      data=await fetchCwaJson(key,false);
+      station=findStationDeep(data);
+    }
+    if(!station) throw new Error("API 回傳中找不到仁武站 C0V680");
+
+    const p10=getCwaRain(station,"Past10Min");
+    const p1=getCwaRain(station,"Past1hr");
+    const p3=getCwaRain(station,"Past3hr");
+    const p6=getCwaRain(station,"Past6hr");
+    const p12=getCwaRain(station,"Past12hr");
+    const p24=getCwaRain(station,"Past24hr");
+
+    $("cwa10").textContent=p10.label;
+    $("cwa1").textContent=p1.label;
+    $("cwa3").textContent=p3.label;
+    $("cwa6").textContent=p6.label;
+    $("cwa12").textContent=p12.label;
+    $("cwa24").textContent=p24.label;
+
+    renderCwaRisk(p1,p3,p24);
+
+    const obs=getObsTime(station);
+    const stationName=station.StationName ?? station.stationName ?? "仁武";
+    $("cwaStatus").textContent=
+      `讀取成功｜${stationName} C0V680\n`+
+      `觀測時間：${obs}\n`+
+      `官方測站：約 22.701083, 120.347722｜距目前預設位置約 1.44 km`;
+  }catch(e){
+    $("cwaStatus").textContent=
+      `中央氣象署讀取失敗：${e.message}\n`+
+      `請確認授權碼正確。若瀏覽器回報 CORS，之後可改由 Cloudflare Worker 代抓。`;
+  }finally{
+    $("cwaBtn").disabled=false;
+  }
+}
+
+// ---------- Windy Testing ----------
 async function updateWindy(){
   const key=$("windyKey").value.trim();
   const lat=parseFloat($("lat").value),lon=parseFloat($("lon").value);
   if(!key){$("windyStatus").textContent="請先輸入 Windy Point Forecast key。";return;}
-  $("windyBtn").disabled=true;$("windyStatus").textContent="正在讀取 Windy…";
+  $("windyBtn").disabled=true;
+  $("windyStatus").textContent="正在讀取 Windy…";
   try{
     const resp=await fetch("https://api.windy.com/api/point-forecast/v2",{
-      method:"POST",headers:{"Content-Type":"application/json"},
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
       body:JSON.stringify({lat,lon,model:"gfs",parameters:["precip"],levels:["surface"],key})
     });
     const data=await resp.json();
@@ -258,15 +455,31 @@ async function updateWindy(){
     if(unit!=="m"&&unit!=="mm")throw new Error("未知雨量單位："+unit);
     const now=Date.now();
     const vals=ts.map((t,j)=>({t:Number(t),v:conv(arr[j])}))
-      .filter(x=>Number.isFinite(x.v)&&x.t>now).sort((a,b)=>a.t-b.t).slice(0,8).map(x=>x.v);
+      .filter(x=>Number.isFinite(x.v)&&x.t>now)
+      .sort((a,b)=>a.t-b.t)
+      .slice(0,8)
+      .map(x=>x.v);
     const s=n=>vals.slice(0,n).reduce((a,b)=>a+b,0);
-    $("w3").textContent=fmt(s(1));$("w6").textContent=fmt(s(2));$("w12").textContent=fmt(s(4));$("w24").textContent=fmt(s(8));$("wunit").textContent=unit;
-    $("windyStatus").textContent=`Windy 更新完成｜${unit==="m"?"已做 m × 1000 → mm":"原始即為 mm"}\n${data.warning?"⚠️ "+data.warning:"未收到 Testing warning"}`;
-  }catch(e){$("windyStatus").textContent="Windy 更新失敗："+e.message;}
-  finally{$("windyBtn").disabled=false;}
+    $("w3").textContent=fmt(s(1));
+    $("w6").textContent=fmt(s(2));
+    $("w12").textContent=fmt(s(4));
+    $("w24").textContent=fmt(s(8));
+    $("wunit").textContent=unit;
+    $("windyStatus").textContent=
+      `Windy 更新完成｜${unit==="m"?"已做 m × 1000 → mm":"原始即為 mm"}\n`+
+      `${data.warning?"⚠️ "+data.warning:"未收到 Testing warning"}`;
+  }catch(e){
+    $("windyStatus").textContent="Windy 更新失敗："+e.message;
+  }finally{
+    $("windyBtn").disabled=false;
+  }
 }
+
 $("refresh").addEventListener("click",updateFree);
+$("cwaBtn").addEventListener("click",updateCwa);
 $("windyBtn").addEventListener("click",updateWindy);
+
+// 預報不需 key，開頁面自動載入。
 updateFree();
 </script>
 </body>
