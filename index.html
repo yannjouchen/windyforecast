@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>仁武防災雨量儀表板 v4</title>
+<title>仁武防災雨量儀表板 v6</title>
 <style>
 :root{
   color-scheme:dark;
@@ -52,7 +52,7 @@ a{color:#9bbcff}
 </head>
 <body>
 <div class="wrap">
-  <h1>仁武即時防災雨量儀表板 v4</h1>
+  <h1>仁武即時防災雨量儀表板 v6</h1>
   <div class="sub">中央氣象署仁武實測 × GFS + ICON 未來雨量 × Windy Testing 選配<br>
   預設位置：高雄市仁武區｜22.705864872692686, 120.33468473266137</div>
 
@@ -70,10 +70,10 @@ a{color:#9bbcff}
     <h2>中央氣象署仁武站 C0V680｜即時實測</h2>
     <div class="muted">
       仁武站位於仁武區公所，官方站點約 22.701083, 120.347722；距目前預設位置約 1.44 km。
-      CWA O-A0002-001 提供逐 10 分鐘更新的雨量觀測。
+      CWA O-A0002-001 提供逐 10 分鐘更新的雨量觀測；請勿選到 C-B0025-001（每日歷史雨量）。
     </div>
     <div class="keygrid" style="margin-top:14px">
-      <input id="cwaKey" type="password" placeholder="貼上中央氣象署 Open Data 授權碼（CWA-...）">
+      <div class="status" style="margin-top:0">中央氣象署 API 授權碼：已內建｜開啟頁面會自動更新</div>
       <button id="cwaBtn" class="secondary">更新仁武實測</button>
     </div>
     <div class="kpis obs">
@@ -85,7 +85,7 @@ a{color:#9bbcff}
       <div class="kpi"><div class="l">過去 24h</div><div class="v" id="cwa24">—</div></div>
     </div>
     <div class="risk" id="cwaRisk">等待中央氣象署實測資料</div>
-    <div id="cwaStatus" class="status">需要中央氣象署免費 Open Data 授權碼。授權碼只存在本頁記憶體，不會寫入檔案或 localStorage。</div>
+    <div id="cwaStatus" class="status">中央氣象署 API 授權碼已內建。開啟頁面會自動讀取 O-A0002-001 / 仁武 C0V680。</div>
   </section>
 
   <section class="card">
@@ -167,12 +167,13 @@ a{color:#9bbcff}
   <footer>
     中央氣象署實測：O-A0002-001（仁武站 C0V680）。GFS：Open-Meteo NOAA GFS API。ICON：Open-Meteo DWD ICON API。
     實測值與預報值的時間意義不同，因此本頁不會直接把「過去 24h 實測」與「未來 24h 預報」相加後當作官方 24h 門檻。
-    本頁為預報與防災輔助工具，不取代中央氣象署正式警特報。
+    中央氣象署授權碼目前直接內建於此前端檔案。本頁為預報與防災輔助工具，不取代中央氣象署正式警特報。
   </footer>
 </div>
 
 <script>
 const $=id=>document.getElementById(id);
+const CWA_API_KEY="CWA-A6A7785B-BFE3-4D96-A6DD-EE9724E83D92";
 const fmt=n=>Number.isFinite(n)?`${n.toFixed(n>=100?0:1)} mm`:"—";
 const sum=(a,n)=>a.slice(0,Math.min(n,a.length)).reduce((x,y)=>x+y,0);
 
@@ -302,7 +303,9 @@ function findStationDeep(node){
   }
   if(typeof node==="object"){
     const id=node.StationId ?? node.StationID ?? node.stationId ?? node.stationID;
-    if(String(id||"").trim()==="C0V680") return node;
+    const name=node.StationName ?? node.stationName;
+    if(String(id||"").trim().toUpperCase()==="C0V680") return node;
+    if(String(name||"").trim()==="仁武") return node;
     for(const value of Object.values(node)){
       const found=findStationDeep(value);
       if(found) return found;
@@ -364,43 +367,82 @@ function renderCwaRisk(p1,p3,p24){
   const [cls,txt]=riskText(p1.value,p3.value,p24.value);
   $("cwaRisk").innerHTML=`<strong class="${cls}">實測判斷：${txt}</strong><br>`+
     `過去 1h：${fmt(p1.value)}｜過去 3h：${fmt(p3.value)}｜過去 24h：${fmt(p24.value)}<br>`+
-    `<span class="smallnote">這裡使用的是氣象署實際觀測累積值，可直接對照官方雨量定義；是否發布警報仍以氣象署正式警特報為準。</span>`;
+    `<span class="smallnote">這裡使用的是氣象署實際觀測累積值；是否發布警報仍以中央氣象署正式警特報為準。</span>`;
 }
 
-async function fetchCwaJson(key,withStationFilter=true){
+function getResourceId(data){
+  return data?.result?.resource_id ??
+         data?.result?.resourceId ??
+         data?.resource_id ??
+         null;
+}
+
+async function cwaRequest(key, params={}){
   const u=new URL("https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0002-001");
   u.searchParams.set("Authorization",key);
   u.searchParams.set("format","JSON");
-  if(withStationFilter) u.searchParams.set("StationId","C0V680");
-  const resp=await fetch(u);
+  Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
+
+  const resp=await fetch(u.toString(), {cache:"no-store"});
   const text=await resp.text();
+
   let data;
-  try{data=JSON.parse(text);}catch{throw new Error(`CWA 回傳非 JSON（HTTP ${resp.status}）`);}
+  try{
+    data=JSON.parse(text);
+  }catch{
+    throw new Error(`CWA 回傳不是 JSON（HTTP ${resp.status}）`);
+  }
+
   if(!resp.ok) throw new Error(`CWA HTTP ${resp.status}`);
+
   if(data.success===false || data.success==="false"){
     throw new Error(data?.result?.message || "CWA API 回報失敗");
+  }
+
+  const rid=getResourceId(data);
+  if(rid && rid!=="O-A0002-001"){
+    throw new Error(`目前回傳的是 ${rid}，不是即時雨量 O-A0002-001`);
   }
   return data;
 }
 
-async function updateCwa(){
-  const key=$("cwaKey").value.trim();
-  if(!key){
-    $("cwaStatus").textContent="請先貼上中央氣象署 Open Data 授權碼（CWA-...）。";
-    return;
-  }
-  $("cwaBtn").disabled=true;
-  $("cwaStatus").textContent="正在讀取中央氣象署仁武站 C0V680…";
-  try{
-    let data=await fetchCwaJson(key,true);
-    let station=findStationDeep(data);
+async function getRenwuStation(key){
+  // CWA 不同 API/版本曾出現 stationId / StationId 命名差異，
+  // 因此依序嘗試多種篩選方式。
+  const attempts=[
+    {label:"stationId=C0V680", params:{stationId:"C0V680"}},
+    {label:"StationId=C0V680", params:{StationId:"C0V680"}},
+    {label:"StationName=仁武", params:{StationName:"仁武"}},
+    // 最後抓完整資料；limit 拉高避免只取得前幾十站。
+    {label:"完整資料搜尋 C0V680", params:{limit:"2000"}}
+  ];
 
-    // 若 StationId 過濾參數因 API 版本差異沒有命中，退回抓整份資料再找 C0V680。
-    if(!station){
-      data=await fetchCwaJson(key,false);
-      station=findStationDeep(data);
+  const logs=[];
+  for(const a of attempts){
+    try{
+      const data=await cwaRequest(key,a.params);
+      const station=findStationDeep(data);
+      const rid=getResourceId(data) || "O-A0002-001";
+      if(station){
+        return {station,data,method:a.label,resourceId:rid,logs};
+      }
+      logs.push(`${a.label}：成功回傳，但未找到 C0V680`);
+    }catch(e){
+      logs.push(`${a.label}：${e.message}`);
     }
-    if(!station) throw new Error("API 回傳中找不到仁武站 C0V680");
+  }
+  throw new Error("四種查詢方式都找不到仁武站 C0V680。\n"+logs.join("\n"));
+}
+
+async function updateCwa(){
+  const key=CWA_API_KEY;
+
+  $("cwaBtn").disabled=true;
+  $("cwaStatus").textContent="正在讀取中央氣象署 O-A0002-001 / 仁武 C0V680…";
+
+  try{
+    const result=await getRenwuStation(key);
+    const station=result.station;
 
     const p10=getCwaRain(station,"Past10Min");
     const p1=getCwaRain(station,"Past1hr");
@@ -420,14 +462,20 @@ async function updateCwa(){
 
     const obs=getObsTime(station);
     const stationName=station.StationName ?? station.stationName ?? "仁武";
+    const stationId=station.StationId ?? station.StationID ?? "C0V680";
+
     $("cwaStatus").textContent=
-      `讀取成功｜${stationName} C0V680\n`+
+      `讀取成功 ✅\n`+
+      `資料集：${result.resourceId}\n`+
+      `測站：${stationName} ${stationId}\n`+
       `觀測時間：${obs}\n`+
-      `官方測站：約 22.701083, 120.347722｜距目前預設位置約 1.44 km`;
+      `查詢方式：${result.method}\n`+
+      `官方測站：約 22.701083, 120.347722`;
   }catch(e){
     $("cwaStatus").textContent=
-      `中央氣象署讀取失敗：${e.message}\n`+
-      `請確認授權碼正確。若瀏覽器回報 CORS，之後可改由 Cloudflare Worker 代抓。`;
+      `中央氣象署讀取失敗：\n${e.message}\n\n`+
+      `請注意：C-B0025-001 是「每日雨量歷史資料」，不是本頁需要的即時雨量。\n`+
+      `本頁正確使用的資料集是 O-A0002-001。`;
   }finally{
     $("cwaBtn").disabled=false;
   }
@@ -479,8 +527,9 @@ $("refresh").addEventListener("click",updateFree);
 $("cwaBtn").addEventListener("click",updateCwa);
 $("windyBtn").addEventListener("click",updateWindy);
 
-// 預報不需 key，開頁面自動載入。
+// 開啟頁面自動載入 GFS / ICON 與中央氣象署仁武實測。
 updateFree();
+updateCwa();
 </script>
 </body>
 </html>
