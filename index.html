@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>仁武防災雨量儀表板 v7.1 自動更新修正版</title>
+<title>仁武防災雨量儀表板 v7.2 多模型機率版</title>
 <style>
 :root{
   color-scheme:dark;
@@ -23,6 +23,7 @@ input{width:100%;padding:13px;background:#0f1628;color:var(--text)}
 button{padding:13px 20px;background:var(--accent);font-weight:700;color:#071021;border:0;cursor:pointer}
 button.secondary{background:#263552;color:var(--text);border:1px solid var(--line)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid4{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .model{background:var(--card2);border-radius:18px;padding:17px;border:1px solid var(--line)}
 .modelhead{display:flex;justify-content:space-between;gap:10px;align-items:center}
 .tag{font-size:12px;padding:5px 9px;border-radius:999px;background:#263552;color:#cbd8f8}
@@ -31,20 +32,27 @@ button.secondary{background:#263552;color:var(--text);border:1px solid var(--lin
 .kpi{background:#11192b;border-radius:13px;padding:10px;text-align:center;min-width:0}
 .kpi .v{font-size:22px;font-weight:750;margin-top:5px;word-break:break-word}.kpi .l{font-size:12px;color:var(--muted)}
 .risk{padding:11px 12px;border-radius:12px;background:#11192b;line-height:1.55}
-.ok{color:var(--ok)} .warning{color:var(--warn)} .danger{color:var(--danger)}
+.ok{color:var(--ok)} .warning{color:var(--warn)} .danger{color:var(--danger)} .uncertain{color:#cbd8f8}
+.tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.quicklinks{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 16px}
+.quicklinks a{display:inline-block;padding:10px 13px;border:1px solid var(--line);border-radius:12px;background:#11192b;text-decoration:none}
+.probgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.probrow{display:grid;grid-template-columns:1fr auto;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.probrow:last-child{border-bottom:0}
+.probvalue{font-size:20px;font-weight:750}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 th{color:var(--muted);font-weight:600}
 .status{margin-top:12px;background:#11192b;padding:12px;border-radius:12px;color:var(--muted);white-space:pre-wrap;line-height:1.5}
 .keygrid{display:grid;grid-template-columns:1fr auto;gap:10px}
-.compare{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.compare{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .box{background:#11192b;padding:13px;border-radius:13px}
 .big{font-size:25px;font-weight:750}
 .smallnote{font-size:12px;color:var(--muted);margin-top:5px}
 footer{margin-top:22px;color:var(--muted);font-size:13px;line-height:1.6}
 a{color:#9bbcff}
 @media(max-width:760px){
- h1{font-size:28px}.grid2,.compare{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}.controls button{grid-column:1/-1}
+ h1{font-size:28px}.grid2,.grid4,.probgrid,.compare{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}.controls button{grid-column:1/-1}
  .kpis,.kpis.obs{grid-template-columns:repeat(2,1fr)} .keygrid{grid-template-columns:1fr}
  table{font-size:12px}
 }
@@ -52,17 +60,17 @@ a{color:#9bbcff}
 </head>
 <body>
 <div class="wrap">
-  <h1>仁武即時防災雨量儀表板 v7.1｜自動更新修正版</h1>
-  <div class="sub">中央氣象署仁武實測 × GFS + ICON 未來雨量 × Windy Testing 選配<br>
+  <h1>仁武即時防災雨量儀表板 v7.2｜多模型機率版</h1>
+  <div class="sub">中央氣象署實測 × GFS / ICON / ECMWF / JMA × GEFS / ICON-EPS 集合機率 × Windy Testing 選配<br>
   預設位置：高雄市仁武區｜22.705864872692686, 120.33468473266137<br>
-  自動更新：中央氣象署每 10 分鐘｜GFS + ICON 每 60 分鐘<br>安全修正：API 失敗時會清除舊值，不再以過期資料判斷。</div>
+  自動更新：中央氣象署每 10 分鐘｜四套確定性模型 + 兩套集合模型每 60 分鐘<br>安全修正：API 失敗時會清除舊值，不再以過期資料判斷。</div>
 
   <section class="card">
     <h2>位置與更新</h2>
     <div class="controls">
       <div><label>緯度</label><input id="lat" value="22.705864872692686" inputmode="decimal"></div>
       <div><label>經度</label><input id="lon" value="120.33468473266137" inputmode="decimal"></div>
-      <button id="refresh">更新 GFS + ICON</button>
+      <button id="refresh">更新四模型 + 集合機率</button>
     </div>
     <div id="mainStatus" class="status">尚未更新。</div>
     <div id="autoStatus" class="status">自動更新已啟用｜CWA：10 分鐘｜GFS/ICON：60 分鐘</div>
@@ -90,10 +98,13 @@ a{color:#9bbcff}
   </section>
 
   <section class="card">
-    <h2>免費模型預報比較</h2>
-    <div class="grid2">
-      <div class="model" id="gfsCard">
-        <div class="modelhead"><h3>NOAA GFS</h3><span class="tag">免費・免 Key</span></div>
+    <h2>四套確定性模型｜未來累積雨量</h2>
+    <div class="muted">
+      單一模式「未觸及門檻」不代表安全；短時強對流可能被網格平滑或出現時間偏差。這裡把四套模式並排看離散程度。
+    </div>
+    <div class="grid4" style="margin-top:14px">
+      <div class="model">
+        <div class="modelhead"><h3>NOAA GFS</h3><span class="tag" id="gfsTag">全球模式</span></div>
         <div class="kpis">
           <div class="kpi"><div class="l">未來 1h</div><div class="v" id="gfs1">—</div></div>
           <div class="kpi"><div class="l">未來 3h</div><div class="v" id="gfs3">—</div></div>
@@ -104,8 +115,8 @@ a{color:#9bbcff}
         <div class="risk" id="gfsRisk">等待資料</div>
       </div>
 
-      <div class="model" id="iconCard">
-        <div class="modelhead"><h3>DWD ICON</h3><span class="tag">免費・免 Key</span></div>
+      <div class="model">
+        <div class="modelhead"><h3>DWD ICON</h3><span class="tag" id="iconTag">全球模式</span></div>
         <div class="kpis">
           <div class="kpi"><div class="l">未來 1h</div><div class="v" id="icon1">—</div></div>
           <div class="kpi"><div class="l">未來 3h</div><div class="v" id="icon3">—</div></div>
@@ -115,33 +126,92 @@ a{color:#9bbcff}
         </div>
         <div class="risk" id="iconRisk">等待資料</div>
       </div>
+
+      <div class="model">
+        <div class="modelhead"><h3>ECMWF IFS</h3><span class="tag" id="ecmwfTag">IFS HRES</span></div>
+        <div class="kpis">
+          <div class="kpi"><div class="l">未來 1h</div><div class="v" id="ecmwf1">—</div></div>
+          <div class="kpi"><div class="l">未來 3h</div><div class="v" id="ecmwf3">—</div></div>
+          <div class="kpi"><div class="l">未來 6h</div><div class="v" id="ecmwf6">—</div></div>
+          <div class="kpi"><div class="l">未來 12h</div><div class="v" id="ecmwf12">—</div></div>
+          <div class="kpi"><div class="l">未來 24h</div><div class="v" id="ecmwf24">—</div></div>
+        </div>
+        <div class="risk" id="ecmwfRisk">等待資料</div>
+      </div>
+
+      <div class="model">
+        <div class="modelhead"><h3>JMA</h3><span class="tag" id="jmaTag">MSM 優先</span></div>
+        <div class="kpis">
+          <div class="kpi"><div class="l">未來 1h</div><div class="v" id="jma1">—</div></div>
+          <div class="kpi"><div class="l">未來 3h</div><div class="v" id="jma3">—</div></div>
+          <div class="kpi"><div class="l">未來 6h</div><div class="v" id="jma6">—</div></div>
+          <div class="kpi"><div class="l">未來 12h</div><div class="v" id="jma12">—</div></div>
+          <div class="kpi"><div class="l">未來 24h</div><div class="v" id="jma24">—</div></div>
+        </div>
+        <div class="risk" id="jmaRisk">等待資料</div>
+      </div>
     </div>
   </section>
 
   <section class="card">
-    <h2>24 小時模型差異</h2>
+    <h2>24 小時多模型離散程度</h2>
     <div class="compare">
-      <div class="box"><div class="muted">GFS 未來 24h</div><div class="big" id="cmpGfs">—</div></div>
-      <div class="box"><div class="muted">ICON 未來 24h</div><div class="big" id="cmpIcon">—</div></div>
-      <div class="box"><div class="muted">兩模型差距</div><div class="big" id="cmpDiff">—</div></div>
+      <div class="box"><div class="muted">最低值</div><div class="big" id="cmpMin">—</div></div>
+      <div class="box"><div class="muted">中位數</div><div class="big" id="cmpMedian">—</div></div>
+      <div class="box"><div class="muted">最高值</div><div class="big" id="cmpMax">—</div></div>
+      <div class="box"><div class="muted">範圍 Max−Min</div><div class="big" id="cmpRange">—</div></div>
     </div>
-    <div class="status" id="compareNote">模型有差異是正常的。對流性強降雨時，單點預報誤差可能很大，應搭配雷達、觀測雨量與官方警報。</div>
+    <div class="status" id="compareNote">
+      四模型更新後會顯示離散程度。平均 24h 雨量低於 10 mm 時，不顯示相對百分比，以免小雨量造成誇大的百分比差距。
+    </div>
   </section>
 
   <section class="card">
-    <h2>中央氣象署雨量門檻｜未來模型預報對照</h2>
-    <table>
-      <thead><tr><th>等級</th><th>官方門檻</th><th>GFS</th><th>ICON</th></tr></thead>
-      <tbody id="thresholdBody">
-        <tr><td>大雨</td><td>1h ≥ 40 或 24h ≥ 80 mm</td><td>—</td><td>—</td></tr>
-        <tr><td>豪雨</td><td>3h ≥ 100 或 24h ≥ 200 mm</td><td>—</td><td>—</td></tr>
-        <tr><td>大豪雨</td><td>3h ≥ 200 或 24h ≥ 350 mm</td><td>—</td><td>—</td></tr>
-        <tr><td>超大豪雨</td><td>24h ≥ 500 mm</td><td>—</td><td>—</td></tr>
-      </tbody>
-    </table>
+    <h2>集合預報｜24 小時門檻機率</h2>
+    <div class="muted">
+      這裡不是「氣象署發布警報的機率」，而是集合成員中有多少比例的未來 24h 累積雨量超過指定門檻。
+      集合模式原生解析度較粗，因此只用 24h 累積做機率，不拿集合資料估算 1h / 3h 極值。
+    </div>
+    <div class="probgrid" style="margin-top:14px">
+      <div class="model">
+        <div class="modelhead"><h3>NOAA GEFS</h3><span class="tag" id="gefsMembers">等待資料</span></div>
+        <div class="probrow"><span>24h ≥ 80 mm</span><span class="probvalue" id="gefs80">—</span></div>
+        <div class="probrow"><span>24h ≥ 200 mm</span><span class="probvalue" id="gefs200">—</span></div>
+        <div class="probrow"><span>24h ≥ 350 mm</span><span class="probvalue" id="gefs350">—</span></div>
+        <div class="probrow"><span>24h ≥ 500 mm</span><span class="probvalue" id="gefs500">—</span></div>
+      </div>
+      <div class="model">
+        <div class="modelhead"><h3>DWD ICON-EPS</h3><span class="tag" id="iconepsMembers">等待資料</span></div>
+        <div class="probrow"><span>24h ≥ 80 mm</span><span class="probvalue" id="iconeps80">—</span></div>
+        <div class="probrow"><span>24h ≥ 200 mm</span><span class="probvalue" id="iconeps200">—</span></div>
+        <div class="probrow"><span>24h ≥ 350 mm</span><span class="probvalue" id="iconeps350">—</span></div>
+        <div class="probrow"><span>24h ≥ 500 mm</span><span class="probvalue" id="iconeps500">—</span></div>
+      </div>
+    </div>
+    <div class="status" id="ensembleStatus">等待集合預報。</div>
+  </section>
+
+  <section class="card">
+    <h2>中央氣象署雨量門檻｜四模型對照</h2>
+    <div class="quicklinks">
+      <a href="https://www.cwa.gov.tw/V8/C/P/Warning/W26.html" target="_blank" rel="noopener">氣象署大雨／豪雨警特報 ↗</a>
+      <a href="https://www.cwa.gov.tw/V8/C/P/QPF.html" target="_blank" rel="noopener">氣象署定量降水預報 QPF ↗</a>
+      <a href="https://qpeplus.cwa.gov.tw/pub/" target="_blank" rel="noopener">QPEplus 雷達／短延時監測 ↗</a>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>等級</th><th>官方門檻</th><th>GFS</th><th>ICON</th><th>ECMWF</th><th>JMA</th><th>模型共識</th></tr></thead>
+        <tbody id="thresholdBody">
+          <tr><td>大雨</td><td>1h ≥ 40 或 24h ≥ 80 mm</td><td colspan="5">等待資料</td></tr>
+          <tr><td>豪雨</td><td>3h ≥ 100 或 24h ≥ 200 mm</td><td colspan="5">等待資料</td></tr>
+          <tr><td>大豪雨</td><td>3h ≥ 200 或 24h ≥ 350 mm</td><td colspan="5">等待資料</td></tr>
+          <tr><td>超大豪雨</td><td>24h ≥ 500 mm</td><td colspan="5">等待資料</td></tr>
+        </tbody>
+      </table>
+    </div>
     <div class="muted" style="margin-top:12px">
-      預報判斷採「未來 24 小時內最大 1 小時」、「任意連續 3 小時最大累積」與「未來 24 小時累積」比較。
-      這只是模型對照，不代表中央氣象署已發布警報。
+      「模型未觸及」只代表該模式的確定性輸出沒有跨過門檻，不能解讀為安全。
+      短延時強降雨請優先看中央氣象署雷達、QPEplus、QPF 與正式警特報。
     </div>
   </section>
 
@@ -166,7 +236,7 @@ a{color:#9bbcff}
   </section>
 
   <footer>
-    中央氣象署實測：O-A0002-001（優先仁武 C0V680；無即時回傳時自動改用仁武區 CAP040 或最近有效站）。GFS：Open-Meteo NOAA GFS API。ICON：Open-Meteo DWD ICON API。
+    中央氣象署實測：O-A0002-001（優先仁武 C0V680；無即時回傳時自動改用仁武區 CAP040 或最近有效站）。確定性模式：Open-Meteo GFS、ICON、ECMWF IFS、JMA（MSM 優先）。集合模式：Open-Meteo GEFS 與 ICON-EPS。
     實測值與預報值的時間意義不同，因此本頁不會直接把「過去 24h 實測」與「未來 24h 預報」相加後當作官方 24h 門檻。
     中央氣象署授權碼目前直接內建於此前端檔案。本頁為預報與防災輔助工具，不取代中央氣象署正式警特報。
   </footer>
@@ -195,7 +265,15 @@ function riskText(max1,max3,r24){
   if(max3>=200||r24>=350) return ["danger","大豪雨門檻"];
   if(max3>=100||r24>=200) return ["danger","豪雨門檻"];
   if(max1>=40||r24>=80) return ["warning","大雨門檻"];
-  return ["ok","目前未達氣象署大雨量級門檻"];
+  return ["ok","目前實測未達氣象署大雨量級門檻"];
+}
+
+function forecastRiskText(max1,max3,r24){
+  if(r24>=500) return ["danger","此模型觸及超大豪雨雨量門檻"];
+  if(max3>=200||r24>=350) return ["danger","此模型觸及大豪雨雨量門檻"];
+  if(max3>=100||r24>=200) return ["danger","此模型觸及豪雨雨量門檻"];
+  if(max1>=40||r24>=80) return ["warning","此模型觸及大雨雨量門檻"];
+  return ["uncertain","此模型未觸及門檻（不代表安全）"];
 }
 
 function evaluate(arr){
@@ -206,144 +284,308 @@ function evaluate(arr){
   return {r1,r3,r6,r12,r24,max1,max3};
 }
 
-function renderModel(prefix,r){
+function renderModel(prefix,r,sourceLabel){
   ["1","3","6","12","24"].forEach(k=>$(prefix+k).textContent=fmt(r["r"+k]));
-  const [cls,txt]=riskText(r.max1,r.max3,r.r24);
+  const [cls,txt]=forecastRiskText(r.max1,r.max3,r.r24);
   $(prefix+"Risk").innerHTML=`<strong class="${cls}">${txt}</strong><br>`+
     `24h 內最大 1h：${fmt(r.max1)}<br>`+
     `24h 內最大連續 3h：${fmt(r.max3)}<br>`+
     `未來 24h：${fmt(r.r24)}`;
+  const tag=$(prefix+"Tag");
+  if(tag && sourceLabel) tag.textContent=sourceLabel;
+}
+
+function thresholdReached(r,kind){
+  if(!r) return false;
+  if(kind==="heavy") return r.max1>=40||r.r24>=80;
+  if(kind==="torrential") return r.max3>=100||r.r24>=200;
+  if(kind==="very") return r.max3>=200||r.r24>=350;
+  return r.r24>=500;
 }
 
 function thresholdCell(r,kind){
-  if(kind==="heavy") return (r.max1>=40||r.r24>=80) ? "達門檻" : `未達（1h max ${r.max1.toFixed(1)} / 24h ${r.r24.toFixed(1)}）`;
-  if(kind==="torrential") return (r.max3>=100||r.r24>=200) ? "達門檻" : `未達（3h max ${r.max3.toFixed(1)} / 24h ${r.r24.toFixed(1)}）`;
-  if(kind==="very") return (r.max3>=200||r.r24>=350) ? "達門檻" : `未達（3h max ${r.max3.toFixed(1)} / 24h ${r.r24.toFixed(1)}）`;
-  return r.r24>=500 ? "達門檻" : `未達（24h ${r.r24.toFixed(1)}）`;
+  if(!r) return "資料不可用";
+  if(thresholdReached(r,kind)) return "觸及門檻";
+  if(kind==="heavy") return `模型未觸及（1h max ${r.max1.toFixed(1)} / 24h ${r.r24.toFixed(1)}）`;
+  if(kind==="torrential") return `模型未觸及（3h max ${r.max3.toFixed(1)} / 24h ${r.r24.toFixed(1)}）`;
+  if(kind==="very") return `模型未觸及（3h max ${r.max3.toFixed(1)} / 24h ${r.r24.toFixed(1)}）`;
+  return `模型未觸及（24h ${r.r24.toFixed(1)}）`;
 }
 
-function renderThresholds(g,i){
+const MODEL_ORDER=["gfs","icon","ecmwf","jma"];
+const MODEL_NAMES={gfs:"GFS",icon:"ICON",ecmwf:"ECMWF",jma:"JMA"};
+
+function renderThresholdsAvailable(models){
   const rows=[
     ["大雨","1h ≥ 40 或 24h ≥ 80 mm","heavy"],
     ["豪雨","3h ≥ 100 或 24h ≥ 200 mm","torrential"],
     ["大豪雨","3h ≥ 200 或 24h ≥ 350 mm","very"],
     ["超大豪雨","24h ≥ 500 mm","extreme"]
   ];
-  $("thresholdBody").innerHTML=rows.map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td><td>${thresholdCell(g,x[2])}</td><td>${thresholdCell(i,x[2])}</td></tr>`).join("");
+  $("thresholdBody").innerHTML=rows.map(x=>{
+    const vals=MODEL_ORDER.map(id=>thresholdCell(models[id]||null,x[2]));
+    const available=MODEL_ORDER.filter(id=>models[id]).length;
+    const hit=MODEL_ORDER.filter(id=>thresholdReached(models[id],x[2])).length;
+    const consensus=available ? `${hit}/${available} 模型觸及` : "資料不可用";
+    return `<tr><td>${x[0]}</td><td>${x[1]}</td>`+
+      vals.map(v=>`<td>${v}</td>`).join("")+
+      `<td>${consensus}</td></tr>`;
+  }).join("");
 }
 
-async function fetchOpenMeteo(endpoint,lat,lon){
-  const u=new URL(endpoint);
+async function fetchDeterministic(model,lat,lon){
+  const u=new URL("https://api.open-meteo.com/v1/forecast");
   u.searchParams.set("latitude",lat);
   u.searchParams.set("longitude",lon);
   u.searchParams.set("hourly","precipitation");
   u.searchParams.set("forecast_hours","36");
   u.searchParams.set("timezone","Asia/Taipei");
   u.searchParams.set("precipitation_unit","mm");
+  u.searchParams.set("models",model);
+
   const resp=await fetch(u);
   if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const data=await resp.json();
   const times=data.hourly?.time||[];
   const vals=data.hourly?.precipitation||[];
   if(!times.length||!vals.length) throw new Error("缺少 hourly precipitation");
+
   const now=Date.now();
-  const future=times.map((t,j)=>({t:new Date(t+"+08:00").getTime(),v:Number(vals[j])}))
-    // Hourly precipitation at T is the accumulation for the preceding hour.
-    // Only future timestamps belong in the forward-looking sequence.
+  const future=times.map((t,j)=>({
+      t:new Date(t+"+08:00").getTime(),
+      v:vals[j]===null?NaN:Number(vals[j])
+    }))
     .filter(x=>Number.isFinite(x.v)&&x.t>now)
     .sort((a,b)=>a.t-b.t)
     .slice(0,24)
     .map(x=>x.v);
-  if(!future.length) throw new Error("沒有未來資料");
+
+  if(future.length<20) throw new Error(`未來資料不足（${future.length} 筆）`);
   return {raw:data,vals:future,result:evaluate(future)};
+}
+
+async function fetchJma(lat,lon){
+  try{
+    const r=await fetchDeterministic("jma_msm",lat,lon);
+    return {...r,sourceLabel:"JMA MSM"};
+  }catch(msmErr){
+    const r=await fetchDeterministic("jma_seamless",lat,lon);
+    return {...r,sourceLabel:"JMA seamless"};
+  }
 }
 
 function resetModel(prefix,message="資料不可用"){
   ["1","3","6","12","24"].forEach(k=>$(prefix+k).textContent="—");
-  $(prefix+"Risk").innerHTML=`<strong class="danger">${message}</strong><br><span class="smallnote">已清除上一筆資料，避免誤把舊預報當成目前預報。</span>`;
+  $(prefix+"Risk").innerHTML=`<strong class="danger">${message}</strong><br>`+
+    `<span class="smallnote">已清除上一筆資料，避免誤把舊預報當成目前預報。</span>`;
 }
 
-function resetModelComparison(){
-  $("cmpGfs").textContent="—";
-  $("cmpIcon").textContent="—";
-  $("cmpDiff").textContent="—";
-  $("compareNote").textContent="模型資料不完整，暫停比較；已清除上一筆比較結果。";
+function resetConsensus(){
+  ["cmpMin","cmpMedian","cmpMax","cmpRange"].forEach(id=>$(id).textContent="—");
+  $("compareNote").textContent="可用模型不足，暫停離散程度比較；已清除上一筆結果。";
 }
 
-function renderThresholdsAvailable(g,i){
-  const rows=[
-    ["大雨","1h ≥ 40 或 24h ≥ 80 mm","heavy"],
-    ["豪雨","3h ≥ 100 或 24h ≥ 200 mm","torrential"],
-    ["大豪雨","3h ≥ 200 或 24h ≥ 350 mm","very"],
-    ["超大豪雨","24h ≥ 500 mm","extreme"]
-  ];
-  const cell=(v,kind)=>v ? thresholdCell(v,kind) : "資料不可用";
-  $("thresholdBody").innerHTML=rows.map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td><td>${cell(g,x[2])}</td><td>${cell(i,x[2])}</td></tr>`).join("");
+function median(values){
+  const a=[...values].sort((x,y)=>x-y);
+  if(!a.length) return NaN;
+  const m=Math.floor(a.length/2);
+  return a.length%2?a[m]:(a[m-1]+a[m])/2;
 }
 
-function clearCwaDisplay(message="中央氣象署資料不可用"){
-  ["cwa10","cwa1","cwa3","cwa6","cwa12","cwa24"].forEach(id=>$(id).textContent="—");
-  $("cwaRisk").innerHTML=`<strong class="danger">${message}</strong><br><span class="smallnote">已清除上一筆觀測值，避免把過期雨量誤認為目前狀況。</span>`;
+function renderConsensus(models){
+  const entries=MODEL_ORDER
+    .filter(id=>models[id]&&Number.isFinite(models[id].r24))
+    .map(id=>({id,name:MODEL_NAMES[id],v:models[id].r24}));
+
+  if(entries.length<2){
+    resetConsensus();
+    if(entries.length===1){
+      $("compareNote").textContent=`只有 ${entries[0].name} 可用，無法判斷模型離散程度。`;
+    }
+    return;
+  }
+
+  const vals=entries.map(x=>x.v);
+  const mn=Math.min(...vals),mx=Math.max(...vals),med=median(vals),range=mx-mn;
+  const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+
+  $("cmpMin").textContent=fmt(mn);
+  $("cmpMedian").textContent=fmt(med);
+  $("cmpMax").textContent=fmt(mx);
+  $("cmpRange").textContent=fmt(range);
+
+  const detail=entries.map(x=>`${x.name} ${x.v.toFixed(1)}`).join("｜");
+  if(avg<10){
+    $("compareNote").textContent=
+      `${detail}\n平均 24h 雨量 ${avg.toFixed(1)} mm < 10 mm，因此不顯示相對百分比；絕對範圍為 ${range.toFixed(1)} mm。`;
+  }else{
+    const pct=range/avg*100;
+    $("compareNote").textContent=
+      `${detail}\nMax−Min = ${range.toFixed(1)} mm，約為四模型平均值的 ${pct.toFixed(0)}%。模型越分散，不確定性越高。`;
+  }
+}
+
+function clearEnsemble(prefix,message="資料不可用"){
+  ["80","200","350","500"].forEach(k=>$(prefix+k).textContent="—");
+  const tag=$(prefix+"Members");
+  if(tag) tag.textContent=message;
+}
+
+async function fetchEnsemble(model,lat,lon){
+  const u=new URL("https://ensemble-api.open-meteo.com/v1/ensemble");
+  u.searchParams.set("latitude",lat);
+  u.searchParams.set("longitude",lon);
+  u.searchParams.set("hourly","precipitation");
+  u.searchParams.set("forecast_hours","36");
+  u.searchParams.set("timezone","Asia/Taipei");
+  u.searchParams.set("precipitation_unit","mm");
+  u.searchParams.set("temporal_resolution","hourly");
+  u.searchParams.set("models",model);
+
+  const resp=await fetch(u);
+  if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data=await resp.json();
+  const hourly=data.hourly||{};
+  const times=hourly.time||[];
+  if(!times.length) throw new Error("缺少 ensemble time");
+
+  const now=Date.now();
+  const idx=times
+    .map((t,i)=>({i,t:new Date(t+"+08:00").getTime()}))
+    .filter(x=>Number.isFinite(x.t)&&x.t>now)
+    .sort((a,b)=>a.t-b.t)
+    .slice(0,24)
+    .map(x=>x.i);
+
+  if(idx.length<20) throw new Error(`集合未來時間不足（${idx.length} 筆）`);
+
+  const memberKeys=Object.keys(hourly).filter(k=>
+    k!=="time" && k.startsWith("precipitation") && Array.isArray(hourly[k])
+  );
+
+  const sums=[];
+  for(const key of memberKeys){
+    const arr=hourly[key];
+    const vals=idx.map(i=>arr[i]);
+    if(vals.some(v=>v===null||v===undefined||!Number.isFinite(Number(v)))) continue;
+    sums.push(vals.reduce((a,b)=>a+Number(b),0));
+  }
+  if(!sums.length) throw new Error("找不到有效集合成員");
+
+  const probability=threshold=>100*sums.filter(v=>v>=threshold).length/sums.length;
+  return {
+    members:sums.length,
+    p80:probability(80),
+    p200:probability(200),
+    p350:probability(350),
+    p500:probability(500)
+  };
+}
+
+function renderEnsemble(prefix,r){
+  $(prefix+"80").textContent=`${r.p80.toFixed(0)}%`;
+  $(prefix+"200").textContent=`${r.p200.toFixed(0)}%`;
+  $(prefix+"350").textContent=`${r.p350.toFixed(0)}%`;
+  $(prefix+"500").textContent=`${r.p500.toFixed(0)}%`;
+  $(prefix+"Members").textContent=`${r.members} 成員`;
 }
 
 async function updateFree(){
   const lat=parseFloat($("lat").value),lon=parseFloat($("lon").value);
   if(!Number.isFinite(lat)||!Number.isFinite(lon)){
-    $("mainStatus").textContent="座標格式錯誤。"; return;
+    $("mainStatus").textContent="座標格式錯誤。";
+    return;
   }
+
   $("refresh").disabled=true;
-  $("mainStatus").textContent="正在讀取 GFS + ICON…";
+  $("mainStatus").textContent="正在讀取 GFS / ICON / ECMWF / JMA 與集合預報…";
+  $("ensembleStatus").textContent="正在讀取 GEFS + ICON-EPS…";
+
+  const calls=[
+    fetchDeterministic("ncep_gfs_seamless",lat,lon),
+    fetchDeterministic("icon_global",lat,lon),
+    fetchDeterministic("ecmwf_ifs",lat,lon),
+    fetchJma(lat,lon),
+    fetchEnsemble("ncep_gefs025",lat,lon),
+    fetchEnsemble("dwd_icon_global_eps",lat,lon)
+  ];
+
   try{
-    const [gRes,iRes]=await Promise.allSettled([
-      fetchOpenMeteo("https://api.open-meteo.com/v1/gfs",lat,lon),
-      fetchOpenMeteo("https://api.open-meteo.com/v1/dwd-icon",lat,lon)
-    ]);
-    let g=null,i=null,notes=[];
+    const [gRes,iRes,eRes,jRes,gefsRes,iepsRes]=await Promise.allSettled(calls);
+    const models={};
+    const notes=[];
     const errText=r=>{
       if(!r) return "未知錯誤";
       const reason=r.reason;
-      return reason instanceof Error ? reason.message : String(reason ?? "未知錯誤");
+      return reason instanceof Error ? reason.message : String(reason??"未知錯誤");
     };
 
     if(gRes.status==="fulfilled"){
-      g=gRes.value.result;
-      renderModel("gfs",g);
+      models.gfs=gRes.value.result;
+      renderModel("gfs",models.gfs,"GFS seamless");
     }else{
       resetModel("gfs","GFS 更新失敗");
-      notes.push("GFS 失敗："+errText(gRes));
+      notes.push("GFS："+errText(gRes));
     }
 
     if(iRes.status==="fulfilled"){
-      i=iRes.value.result;
-      renderModel("icon",i);
+      models.icon=iRes.value.result;
+      renderModel("icon",models.icon,"ICON global");
     }else{
       resetModel("icon","ICON 更新失敗");
-      notes.push("ICON 失敗："+errText(iRes));
+      notes.push("ICON："+errText(iRes));
     }
 
-    // Rebuild the table every refresh so stale cells cannot survive a partial failure.
-    renderThresholdsAvailable(g,i);
-
-    if(g&&i){
-      $("cmpGfs").textContent=fmt(g.r24);
-      $("cmpIcon").textContent=fmt(i.r24);
-      $("cmpDiff").textContent=fmt(Math.abs(g.r24-i.r24));
-      const avg=(g.r24+i.r24)/2;
-      const pct=avg>0?Math.abs(g.r24-i.r24)/avg*100:0;
-      $("compareNote").textContent=`24h 累積差距 ${Math.abs(g.r24-i.r24).toFixed(1)} mm（約 ${pct.toFixed(0)}%）。差距越大，代表單點降雨預報不確定性越高。`;
+    if(eRes.status==="fulfilled"){
+      models.ecmwf=eRes.value.result;
+      renderModel("ecmwf",models.ecmwf,"IFS HRES");
     }else{
-      resetModelComparison();
-      if(g) $("cmpGfs").textContent=fmt(g.r24);
-      if(i) $("cmpIcon").textContent=fmt(i.r24);
+      resetModel("ecmwf","ECMWF 更新失敗");
+      notes.push("ECMWF："+errText(eRes));
     }
+
+    if(jRes.status==="fulfilled"){
+      models.jma=jRes.value.result;
+      renderModel("jma",models.jma,jRes.value.sourceLabel);
+    }else{
+      resetModel("jma","JMA 更新失敗");
+      notes.push("JMA："+errText(jRes));
+    }
+
+    renderThresholdsAvailable(models);
+    renderConsensus(models);
+
+    const ensembleNotes=[];
+    if(gefsRes.status==="fulfilled"){
+      renderEnsemble("gefs",gefsRes.value);
+    }else{
+      clearEnsemble("gefs","更新失敗");
+      ensembleNotes.push("GEFS："+errText(gefsRes));
+    }
+
+    if(iepsRes.status==="fulfilled"){
+      renderEnsemble("iconeps",iepsRes.value);
+    }else{
+      clearEnsemble("iconeps","更新失敗");
+      ensembleNotes.push("ICON-EPS："+errText(iepsRes));
+    }
+
+    $("ensembleStatus").textContent=ensembleNotes.length
+      ? "集合預報部分失敗：\n"+ensembleNotes.join("\n")
+      : "集合預報更新完成。百分比＝集合成員中未來 24h 累積雨量跨過該門檻的比例。";
+
     const stamp=new Date().toLocaleString("zh-TW",{hour12:false});
-    $("mainStatus").textContent=`更新完成：${stamp}\n座標：${lat}, ${lon}${notes.length?"\n"+notes.join("\n"):""}`;
+    $("mainStatus").textContent=
+      `更新完成：${stamp}\n座標：${lat}, ${lon}`+
+      `${notes.length?"\n部分模型失敗：\n"+notes.join("\n"):""}`;
   }catch(e){
-    resetModel("gfs","GFS 更新失敗");
-    resetModel("icon","ICON 更新失敗");
-    renderThresholdsAvailable(null,null);
-    resetModelComparison();
-    $("mainStatus").textContent="更新失敗："+(e instanceof Error ? e.message : String(e));
+    ["gfs","icon","ecmwf","jma"].forEach(p=>resetModel(p,"模型更新失敗"));
+    renderThresholdsAvailable({});
+    resetConsensus();
+    clearEnsemble("gefs","更新失敗");
+    clearEnsemble("iconeps","更新失敗");
+    $("ensembleStatus").textContent="集合預報更新失敗。";
+    $("mainStatus").textContent="更新失敗："+(e instanceof Error?e.message:String(e));
   }finally{
     $("refresh").disabled=false;
   }
@@ -671,7 +913,7 @@ function refreshAutoStatus(){
   $("autoStatus").textContent =
     `自動更新已啟用\n` +
     `中央氣象署：每 10 分鐘｜上次：${formatClock(lastCwaAutoUpdate)}｜下次：約 ${formatClock(nextCwa)}\n` +
-    `GFS + ICON：每 60 分鐘｜上次：${formatClock(lastModelAutoUpdate)}｜下次：約 ${formatClock(nextModel)}`;
+    `四模型 + 集合：每 60 分鐘｜上次：${formatClock(lastModelAutoUpdate)}｜下次：約 ${formatClock(nextModel)}`;
 }
 
 async function autoUpdateCwa(){
