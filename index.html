@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>仁武防災雨量儀表板 v7.3 台灣短延時版</title>
+<title>仁武防災雨量儀表板｜Final</title>
 <style>
 :root{
   color-scheme:dark;
@@ -43,6 +43,13 @@ button.secondary{background:#263552;color:var(--text);border:1px solid var(--lin
 .shortterm{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .shortterm .hero{font-size:28px;font-weight:800;margin-top:6px}
 .sourcebadge{display:inline-block;padding:5px 9px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--muted)}
+.timeline{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.timeline a{display:block;text-decoration:none;background:#11192b;border:1px solid var(--line);border-radius:14px;padding:13px}
+.timeline strong{display:block;font-size:16px;margin-bottom:5px}
+.timeline span{font-size:12px;color:var(--muted);line-height:1.45}
+.longtable td,.longtable th{text-align:center;white-space:nowrap}
+.longtable td:first-child,.longtable th:first-child{text-align:left}
+.trendnote{margin-top:12px;padding:12px;border-radius:12px;background:#11192b;border:1px solid var(--line)}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 th{color:var(--muted);font-weight:600}
@@ -55,7 +62,7 @@ th{color:var(--muted);font-weight:600}
 footer{margin-top:22px;color:var(--muted);font-size:13px;line-height:1.6}
 a{color:#9bbcff}
 @media(max-width:760px){
- h1{font-size:28px}.grid2,.grid4,.probgrid,.compare,.shortterm{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}.controls button{grid-column:1/-1}
+ h1{font-size:28px}.grid2,.grid4,.probgrid,.compare,.shortterm,.timeline{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}.controls button{grid-column:1/-1}
  .kpis,.kpis.obs{grid-template-columns:repeat(2,1fr)} .keygrid{grid-template-columns:1fr}
  table{font-size:12px}
 }
@@ -63,8 +70,8 @@ a{color:#9bbcff}
 </head>
 <body>
 <div class="wrap">
-  <h1>仁武即時防災雨量儀表板 v7.3｜台灣短延時版</h1>
-  <div class="sub">中央氣象署實測 + QPEplus × MSM(日本) / ECMWF(歐洲) / GFS(美國) / ICON(德國) × 集合機率<br>
+  <h1>仁武即時防災雨量儀表板｜Final</h1>
+  <div class="sub">現在看 CWA 實測 / QPEplus｜1–6h 看 MSM｜0–18h 看 CWA WRF 3 km｜1–5天看 ECMWF / GFS / ICON<br>
   預設位置：高雄市仁武區｜22.705864872692686, 120.33468473266137<br>
   自動更新：中央氣象署每 10 分鐘｜MSM / ECMWF / GFS / ICON + 集合模型每 60 分鐘<br>安全修正：API 失敗時會清除舊值，不再以過期資料判斷。</div>
 
@@ -80,7 +87,18 @@ a{color:#9bbcff}
   </section>
 
   <section class="card">
-    <h2>中央氣象署仁武附近｜即時實測</h2>
+    <h2>防災判讀順序</h2>
+    <div class="muted">不要從「哪個模型最准」開始看；先依時間尺度選資料。</div>
+    <div class="timeline">
+      <a href="#now"><strong>① 現在</strong><span>CWA 實測 + QPEplus 雷達<br>判斷正在下什麼</span></a>
+      <a href="#short"><strong>② 1–6 小時</strong><span>MSM(日本) 5 km<br>搭配 WRF 3 km 的 0–18h 趨勢</span></a>
+      <a href="#days"><strong>③ 1–5 天</strong><span>ECMWF + GFS + ICON<br>看大尺度雨帶與模式共識</span></a>
+      <a href="#risk"><strong>④ 風險確認</strong><span>集合機率 + CWA 門檻<br>不把單一「未觸及」當安全</span></a>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>實測詳細｜10 分鐘～24 小時累積</h2>
     <div class="muted">
       優先使用仁武 C0V680；若該站暫時未出現在 O-A0002-001 即時回傳中，會自動改用仁武區 CAP040「國一N361K」，再不行則選擇距目前座標最近的有效測站。
     </div>
@@ -100,8 +118,8 @@ a{color:#9bbcff}
     <div id="cwaStatus" class="status">中央氣象署 API 授權碼已內建。開啟頁面會自動讀取 O-A0002-001，優先 C0V680，必要時自動切換附近有效測站。</div>
   </section>
 
-  <section class="card">
-    <h2>現在正在下什麼｜CWA 實測 + 雷達 / QPEplus</h2>
+  <section class="card" id="now">
+    <h2>① 現在｜CWA 實測 + 雷達 / QPEplus</h2>
     <div class="shortterm">
       <div class="model">
         <div class="modelhead"><h3>CWA 附近實測</h3><span class="sourcebadge" id="nowStation">等待測站</span></div>
@@ -129,8 +147,8 @@ a{color:#9bbcff}
     </div>
   </section>
 
-  <section class="card">
-    <h2>接下來幾小時｜MSM(日本) 5 km + CWA WRF 3 km</h2>
+  <section class="card" id="short">
+    <h2>② 接下來幾小時｜MSM 1–6h + CWA WRF 3 km 0–18h</h2>
     <div class="shortterm">
       <div class="model">
         <div class="modelhead"><h3>MSM(日本)</h3><span class="tag" id="msmShortTag">5 km 區域模式</span></div>
@@ -144,25 +162,72 @@ a{color:#9bbcff}
       </div>
 
       <div class="model">
-        <div class="modelhead"><h3>CWA WRF 3 km</h3><span class="tag">台灣官方區域模式</span></div>
-        <div class="muted">
-          氣象署開放的是 3×3 km WRF GRIB2 原始格點檔，每 6 小時更新。GitHub Pages 無法合理地在手機端下載並解析大型 GRIB2，
-          因此此區先顯示官方資料狀態與入口；仁武單點 1h / 3h / 6h 數值需要後端或 GitHub Actions 預先轉成 JSON。
+        <div class="modelhead"><h3>CWA WRF 3 km</h3><span class="tag" id="wrfTag">台灣官方區域模式</span></div>
+        <div class="kpis">
+          <div class="kpi"><div class="l">未來 0–6h</div><div class="v" id="wrf06">—</div></div>
+          <div class="kpi"><div class="l">未來 6–12h</div><div class="v" id="wrf12">—</div></div>
+          <div class="kpi"><div class="l">未來 12–18h</div><div class="v" id="wrf18">—</div></div>
+          <div class="kpi"><div class="l">未來 0–18h 累積</div><div class="v" id="wrfCum18">—</div></div>
         </div>
-        <div id="wrfStatus" class="status">等待檢查 CWA WRF 3 km 資料狀態。</div>
+        <div id="wrfStatus" class="status">
+          等待讀取 wrf-renwu.json。此 JSON 由 GitHub Actions 從 CWA WRF 3 km GRIB2 自動擷取仁武附近格點產生。
+        </div>
         <div class="quicklinks">
-          <a href="https://opendata.cwa.gov.tw/dataset/mathematics/M-A0064-006" target="_blank" rel="noopener noreferrer">WRF 3 km +6h 官方資料 ↗</a>
-          <a href="https://opendata.cwa.gov.tw/dataset/mathematics/M-A0064-012" target="_blank" rel="noopener noreferrer">WRF 3 km +12h 官方資料 ↗</a>
+          <a href="https://opendata.cwa.gov.tw/dataset/mathematics/M-A0064-006" target="_blank" rel="noopener noreferrer">WRF 3 km 官方資料 ↗</a>
+        </div>
+        <div class="smallnote">
+          MSM 負責 1h / 3h / 6h；WRF 3 km 負責 0–6h、6–12h、12–18h 趨勢。兩者時間尺度不同，不互相冒充。
         </div>
       </div>
     </div>
   </section>
 
-  <section class="card">
-    <h2>四套確定性模型｜未來累積雨量</h2>
+
+  <section class="card" id="days">
+    <h2>③ 未來 1–5 天｜ECMWF(歐洲) + GFS(美國) + ICON(德國)</h2>
     <div class="muted">
-      顯示順序以台灣短期使用情境為主：第一排 MSM(日本)、ECMWF(歐洲)；第二排 GFS(美國)、ICON(德國)。
-      「模型未觸及門檻」不代表安全。
+      每一格是「從目前往後」每 24 小時的模式累積雨量，不是日曆日雨量。
+      這一層用來看大尺度雨帶、颱風外圍環流與連續降雨趨勢；局部午後雷雨仍以 CWA / QPEplus / MSM 為優先。
+    </div>
+    <div class="tablewrap" style="margin-top:14px">
+      <table class="longtable">
+        <thead>
+          <tr>
+            <th>模式</th>
+            <th>第1天<br><small>0–24h</small></th>
+            <th>第2天<br><small>24–48h</small></th>
+            <th>第3天<br><small>48–72h</small></th>
+            <th>第4天<br><small>72–96h</small></th>
+            <th>第5天<br><small>96–120h</small></th>
+            <th>5日累積</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>ECMWF(歐洲)</th>
+            <td id="lr_ecmwf_1">—</td><td id="lr_ecmwf_2">—</td><td id="lr_ecmwf_3">—</td>
+            <td id="lr_ecmwf_4">—</td><td id="lr_ecmwf_5">—</td><td id="lr_ecmwf_total">—</td>
+          </tr>
+          <tr>
+            <th>GFS(美國)</th>
+            <td id="lr_gfs_1">—</td><td id="lr_gfs_2">—</td><td id="lr_gfs_3">—</td>
+            <td id="lr_gfs_4">—</td><td id="lr_gfs_5">—</td><td id="lr_gfs_total">—</td>
+          </tr>
+          <tr>
+            <th>ICON(德國)</th>
+            <td id="lr_icon_1">—</td><td id="lr_icon_2">—</td><td id="lr_icon_3">—</td>
+            <td id="lr_icon_4">—</td><td id="lr_icon_5">—</td><td id="lr_icon_total">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="longRangeNote" class="trendnote">等待 1–5 天模式資料。</div>
+  </section>
+
+  <section class="card">
+    <h2>補充｜未來 24h 四模型交叉檢查</h2>
+    <div class="muted">
+      這裡保留四模型未來 24h 的詳細數字，作為交叉檢查。短時判斷仍以 MSM / CWA 為主；1–5 天趨勢則以 ECMWF / GFS / ICON 為主。「模型未觸及門檻」不代表安全。
     </div>
     <div class="grid4" style="margin-top:14px">
       <div class="model">
@@ -228,8 +293,8 @@ a{color:#9bbcff}
     </div>
   </section>
 
-  <section class="card">
-    <h2>集合預報｜24 小時門檻機率</h2>
+  <section class="card" id="risk">
+    <h2>④ 風險確認｜集合預報 24h 門檻機率</h2>
     <div class="muted">
       這裡不是「氣象署發布警報的機率」，而是集合成員中有多少比例的未來 24h 累積雨量超過指定門檻。
       集合模式原生解析度較粗，因此只用 24h 累積做機率，不拿集合資料估算 1h / 3h 極值。
@@ -298,9 +363,9 @@ a{color:#9bbcff}
   </section>
 
   <footer>
-    中央氣象署實測：O-A0002-001（優先仁武 C0V680；無即時回傳時自動改用仁武區 CAP040 或最近有效站）。確定性模式：Open-Meteo MSM(日本，JMA MSM 優先)、ECMWF(歐洲)、GFS(美國)、ICON(德國)。CWA WRF 3 km 為官方 GRIB2 rawData，本頁目前只檢查資料狀態，尚未解析單點雨量。集合模式：GEFS 與 ICON-EPS。
+    中央氣象署實測：O-A0002-001（優先仁武 C0V680；無即時回傳時自動改用仁武區 CAP040 或最近有效站）。確定性模式：Open-Meteo MSM(日本，JMA MSM 優先)、ECMWF(歐洲)、GFS(美國)、ICON(德國)。CWA WRF 3 km 由 GitHub Actions 下載官方 GRIB2 rawData，擷取仁武附近格點後產生 wrf-renwu.json；本頁讀取 0–6h、6–12h、12–18h 雨量。集合模式：GEFS 與 ICON-EPS。
     實測值與預報值的時間意義不同，因此本頁不會直接把「過去 24h 實測」與「未來 24h 預報」相加後當作官方 24h 門檻。
-    中央氣象署授權碼目前直接內建於此前端檔案。本頁為預報與防災輔助工具，不取代中央氣象署正式警特報。
+    中央氣象署授權碼目前直接內建於此前端檔案。判讀順序：現在看 CWA/QPEplus；1–6h 看 MSM；0–18h 看 CWA WRF 3 km；1–5天看 ECMWF/GFS/ICON；最後用集合機率與 CWA 門檻確認風險。本頁不取代中央氣象署正式警特報。
   </footer>
 </div>
 
@@ -412,12 +477,12 @@ function renderThresholdsAvailable(models){
   }).join("");
 }
 
-async function fetchDeterministic(model,lat,lon){
+async function fetchDeterministic(model,lat,lon,forecastHours=36,keepHours=24){
   const u=new URL("https://api.open-meteo.com/v1/forecast");
   u.searchParams.set("latitude",lat);
   u.searchParams.set("longitude",lon);
   u.searchParams.set("hourly","precipitation");
-  u.searchParams.set("forecast_hours","36");
+  u.searchParams.set("forecast_hours",String(forecastHours));
   u.searchParams.set("timezone","Asia/Taipei");
   u.searchParams.set("precipitation_unit","mm");
   u.searchParams.set("models",model);
@@ -436,11 +501,12 @@ async function fetchDeterministic(model,lat,lon){
     }))
     .filter(x=>Number.isFinite(x.v)&&x.t>now)
     .sort((a,b)=>a.t-b.t)
-    .slice(0,24)
+    .slice(0,keepHours)
     .map(x=>x.v);
 
-  if(future.length<20) throw new Error(`未來資料不足（${future.length} 筆）`);
-  return {raw:data,vals:future,result:evaluate(future)};
+  const minimumRequired=Math.min(20,keepHours);
+  if(future.length<minimumRequired) throw new Error(`未來資料不足（${future.length} 筆）`);
+  return {raw:data,vals:future,result:evaluate(future.slice(0,24))};
 }
 
 async function fetchJma(lat,lon){
@@ -451,6 +517,61 @@ async function fetchJma(lat,lon){
     const r=await fetchDeterministic("jma_seamless",lat,lon);
     return {...r,sourceLabel:"JMA seamless fallback"};
   }
+}
+
+function longRangeDays(vals){
+  const days=[];
+  for(let d=0;d<5;d++){
+    const chunk=vals.slice(d*24,(d+1)*24);
+    if(chunk.length<20) days.push(NaN);
+    else days.push(chunk.reduce((a,b)=>a+b,0));
+  }
+  return days;
+}
+
+function clearLongRange(prefix){
+  for(let d=1;d<=5;d++) $(`lr_${prefix}_${d}`).textContent="—";
+  $(`lr_${prefix}_total`).textContent="—";
+}
+
+function renderLongRangeRow(prefix,vals){
+  const days=longRangeDays(vals);
+  let total=0,valid=0;
+  days.forEach((v,i)=>{
+    $(`lr_${prefix}_${i+1}`).textContent=Number.isFinite(v)?fmt(v):"—";
+    if(Number.isFinite(v)){total+=v;valid++;}
+  });
+  $(`lr_${prefix}_total`).textContent=valid===5?fmt(total):"—";
+  return days;
+}
+
+function renderLongRange(ecmwfVals,gfsVals,iconVals){
+  const data={
+    ecmwf:renderLongRangeRow("ecmwf",ecmwfVals),
+    gfs:renderLongRangeRow("gfs",gfsVals),
+    icon:renderLongRangeRow("icon",iconVals)
+  };
+
+  const notes=[];
+  for(let d=0;d<5;d++){
+    const vals=["ecmwf","gfs","icon"].map(k=>data[k][d]).filter(Number.isFinite);
+    if(vals.length<2) continue;
+    const min=Math.min(...vals),max=Math.max(...vals);
+    if(max>=80){
+      notes.push(`第${d+1}天：至少一個模式達 80 mm；三模式範圍 ${min.toFixed(1)}–${max.toFixed(1)} mm`);
+    }else if(max-min>=30){
+      notes.push(`第${d+1}天：模式分歧較大，範圍 ${min.toFixed(1)}–${max.toFixed(1)} mm`);
+    }
+  }
+
+  $("longRangeNote").textContent=notes.length
+    ? notes.join("\n")
+    : "目前 1–5 天三模式沒有出現特別大的日累積或明顯分歧；仍需配合後續模式更新。";
+}
+
+function resetLongRange(message="1–5 天資料不完整"){
+  ["ecmwf","gfs","icon"].forEach(clearLongRange);
+  $("longRangeNote").textContent=message;
 }
 
 function resetModel(prefix,message="資料不可用"){
@@ -581,9 +702,9 @@ async function updateFree(){
   $("ensembleStatus").textContent="正在讀取 GEFS + ICON-EPS…";
 
   const calls=[
-    fetchDeterministic("ncep_gfs_seamless",lat,lon),
-    fetchDeterministic("icon_global",lat,lon),
-    fetchDeterministic("ecmwf_ifs",lat,lon),
+    fetchDeterministic("ncep_gfs_seamless",lat,lon,132,120),
+    fetchDeterministic("icon_global",lat,lon,132,120),
+    fetchDeterministic("ecmwf_ifs",lat,lon,132,120),
     fetchJma(lat,lon),
     fetchEnsemble("ncep_gefs025",lat,lon),
     fetchEnsemble("dwd_icon_global_eps",lat,lon)
@@ -636,6 +757,20 @@ async function updateFree(){
     renderThresholdsAvailable(models);
     renderConsensus(models);
 
+    if(
+      eRes.status==="fulfilled" &&
+      gRes.status==="fulfilled" &&
+      iRes.status==="fulfilled"
+    ){
+      renderLongRange(eRes.value.vals,gRes.value.vals,iRes.value.vals);
+    }else{
+      // Show available rows but make missing models explicit.
+      if(eRes.status==="fulfilled") renderLongRangeRow("ecmwf",eRes.value.vals); else clearLongRange("ecmwf");
+      if(gRes.status==="fulfilled") renderLongRangeRow("gfs",gRes.value.vals); else clearLongRange("gfs");
+      if(iRes.status==="fulfilled") renderLongRangeRow("icon",iRes.value.vals); else clearLongRange("icon");
+      $("longRangeNote").textContent="1–5 天有部分模式更新失敗；不要用缺少模式的結果判斷共識。";
+    }
+
     const ensembleNotes=[];
     if(gefsRes.status==="fulfilled"){
       renderEnsemble("gefs",gefsRes.value);
@@ -664,6 +799,7 @@ async function updateFree(){
     resetMsmShort("MSM(日本) 更新失敗");
     renderThresholdsAvailable({});
     resetConsensus();
+    resetLongRange("1–5 天模式更新失敗；已清除舊資料。");
     clearEnsemble("gefs","更新失敗");
     clearEnsemble("iconeps","更新失敗");
     $("ensembleStatus").textContent="集合預報更新失敗。";
@@ -975,49 +1111,53 @@ $("cwaBtn").addEventListener("click",updateCwa);
 $("windyBtn").addEventListener("click",updateWindy);
 
 
-async function updateWrfMeta(){
-  const ids=["M-A0064-006","M-A0064-012","M-A0064-018"];
-  const results=[];
+// ---------- CWA WRF 3 km point JSON ----------
+function clearWrfPoint(message="WRF 3 km 資料不可用"){
+  ["wrf06","wrf12","wrf18","wrfCum18"].forEach(id=>$(id).textContent="—");
+  $("wrfTag").textContent="資料不可用";
+  $("wrfStatus").textContent=message;
+}
 
-  for(const id of ids){
-    try{
-      const u=new URL(`https://opendata.cwa.gov.tw/fileapi/v1/opendataapi/${id}`);
-      u.searchParams.set("Authorization",CWA_API_KEY);
-      u.searchParams.set("format","JSON");
-      const resp=await fetch(u.toString(),{cache:"no-store"});
-      if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data=await resp.json();
+async function updateWrfPoint(){
+  try{
+    const resp=await fetch(`./wrf-renwu.json?_=${Date.now()}`,{cache:"no-store"});
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data=await resp.json();
 
-      const deep=(node,key)=>{
-        if(!node||typeof node!=="object") return undefined;
-        if(Object.prototype.hasOwnProperty.call(node,key)) return node[key];
-        for(const v of Object.values(node)){
-          const x=deep(v,key);
-          if(x!==undefined) return x;
-        }
-        return undefined;
-      };
-
-      results.push({
-        id,
-        initial:deep(data,"InitialTime")||deep(data,"initialTime")||"未知",
-        hour:deep(data,"ForecastHour")||id.slice(-3)
-      });
-    }catch(e){
-      results.push({id,error:e instanceof Error?e.message:String(e)});
+    if(data.status!=="ok" || !Array.isArray(data.forecast)){
+      throw new Error(data.message || "JSON 尚未產生有效 WRF 資料");
     }
-  }
 
-  const ok=results.filter(x=>!x.error);
-  if(ok.length){
+    const byHour=Object.fromEntries(data.forecast.map(x=>[Number(x.forecast_hour),x]));
+    const h6=byHour[6],h12=byHour[12],h18=byHour[18];
+    if(!h6 || !h12 || !h18) throw new Error("WRF JSON 缺少 +6 / +12 / +18h");
+
+    const p06=Number(h6.period_mm);
+    const p612=Number(h12.period_mm);
+    const p1218=Number(h18.period_mm);
+    const cum18=Number(h18.cumulative_mm);
+
+    $("wrf06").textContent=Number.isFinite(p06)?fmt(p06):"—";
+    $("wrf12").textContent=Number.isFinite(p612)?fmt(p612):"—";
+    $("wrf18").textContent=Number.isFinite(p1218)?fmt(p1218):"—";
+    $("wrfCum18").textContent=Number.isFinite(cum18)?fmt(cum18):"—";
+    $("wrfTag").textContent="CWA WRF 3 km";
+
+    const gp=data.grid_point||{};
+    const dist=Number(gp.distance_km);
     $("wrfStatus").textContent=
-      `CWA WRF 3 km 官方資料可取得 ✅\n`+
-      ok.map(x=>`${x.id}｜預報 +${String(x.hour).padStart(3,"0")}h｜模式起報 ${x.initial}`).join("\n")+
-      `\n\n目前公開資料為 GRIB2 原始格點檔；本純前端頁面暫不直接解析仁武單點雨量。`;
-  }else{
-    $("wrfStatus").textContent=
-      `無法由瀏覽器讀取 WRF metadata（可能是 CORS 或檔案 API 限制）。\n`+
-      `官方 WRF 3 km 資料仍可由下方連結查看；此失敗不影響 MSM / ECMWF / GFS / ICON。`;
+      `讀取成功 ✅\n`+
+      `模式起報：${data.model_initial_time || "未知"}\n`+
+      `JSON 產生：${data.generated_at || "未知"}\n`+
+      `目標：${data.target?.lat ?? "?"}, ${data.target?.lon ?? "?"}\n`+
+      `使用格點：${gp.lat ?? "?"}, ${gp.lon ?? "?"}`+
+      `${Number.isFinite(dist)?`｜距離 ${dist.toFixed(2)} km`:""}\n`+
+      `資料：M-A0064-006 / 012 / 018`;
+  }catch(e){
+    clearWrfPoint(
+      `WRF 3 km 尚未有可用的仁武 JSON：${e instanceof Error?e.message:String(e)}\n`+
+      `若剛上傳 GitHub，請先執行 Actions → Update Renwu WRF 3km。`
+    );
   }
 }
 
@@ -1065,7 +1205,7 @@ async function autoUpdateCwa(){
 
 async function autoUpdateModels(){
   try{
-    await Promise.allSettled([updateFree(),updateWrfMeta()]);
+    await Promise.allSettled([updateFree(),updateWrfPoint()]);
   }finally{
     lastModelAutoUpdate = new Date();
     refreshAutoStatus();
