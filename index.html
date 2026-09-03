@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>仁武防災雨量儀表板 v7.2 多模型機率版</title>
+<title>仁武防災雨量儀表板 v7.3 台灣短延時版</title>
 <style>
 :root{
   color-scheme:dark;
@@ -40,6 +40,9 @@ button.secondary{background:#263552;color:var(--text);border:1px solid var(--lin
 .probrow{display:grid;grid-template-columns:1fr auto;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
 .probrow:last-child{border-bottom:0}
 .probvalue{font-size:20px;font-weight:750}
+.shortterm{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.shortterm .hero{font-size:28px;font-weight:800;margin-top:6px}
+.sourcebadge{display:inline-block;padding:5px 9px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--muted)}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 th{color:var(--muted);font-weight:600}
@@ -52,7 +55,7 @@ th{color:var(--muted);font-weight:600}
 footer{margin-top:22px;color:var(--muted);font-size:13px;line-height:1.6}
 a{color:#9bbcff}
 @media(max-width:760px){
- h1{font-size:28px}.grid2,.grid4,.probgrid,.compare{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}.controls button{grid-column:1/-1}
+ h1{font-size:28px}.grid2,.grid4,.probgrid,.compare,.shortterm{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}.controls button{grid-column:1/-1}
  .kpis,.kpis.obs{grid-template-columns:repeat(2,1fr)} .keygrid{grid-template-columns:1fr}
  table{font-size:12px}
 }
@@ -60,10 +63,10 @@ a{color:#9bbcff}
 </head>
 <body>
 <div class="wrap">
-  <h1>仁武即時防災雨量儀表板 v7.2｜多模型機率版</h1>
-  <div class="sub">中央氣象署實測 × GFS / ICON / ECMWF / JMA × GEFS / ICON-EPS 集合機率 × Windy Testing 選配<br>
+  <h1>仁武即時防災雨量儀表板 v7.3｜台灣短延時版</h1>
+  <div class="sub">中央氣象署實測 + QPEplus × MSM(日本) / ECMWF(歐洲) / GFS(美國) / ICON(德國) × 集合機率<br>
   預設位置：高雄市仁武區｜22.705864872692686, 120.33468473266137<br>
-  自動更新：中央氣象署每 10 分鐘｜四套確定性模型 + 兩套集合模型每 60 分鐘<br>安全修正：API 失敗時會清除舊值，不再以過期資料判斷。</div>
+  自動更新：中央氣象署每 10 分鐘｜MSM / ECMWF / GFS / ICON + 集合模型每 60 分鐘<br>安全修正：API 失敗時會清除舊值，不再以過期資料判斷。</div>
 
   <section class="card">
     <h2>位置與更新</h2>
@@ -73,7 +76,7 @@ a{color:#9bbcff}
       <button id="refresh">更新四模型 + 集合機率</button>
     </div>
     <div id="mainStatus" class="status">尚未更新。</div>
-    <div id="autoStatus" class="status">自動更新已啟用｜CWA：10 分鐘｜GFS/ICON：60 分鐘</div>
+    <div id="autoStatus" class="status">自動更新已啟用｜CWA：10 分鐘｜MSM/ECMWF/GFS/ICON + 集合：60 分鐘</div>
   </section>
 
   <section class="card">
@@ -98,37 +101,84 @@ a{color:#9bbcff}
   </section>
 
   <section class="card">
+    <h2>現在正在下什麼｜CWA 實測 + 雷達 / QPEplus</h2>
+    <div class="shortterm">
+      <div class="model">
+        <div class="modelhead"><h3>CWA 附近實測</h3><span class="sourcebadge" id="nowStation">等待測站</span></div>
+        <div class="kpis">
+          <div class="kpi"><div class="l">過去 10 分</div><div class="v" id="now10">—</div></div>
+          <div class="kpi"><div class="l">過去 1h</div><div class="v" id="now1">—</div></div>
+          <div class="kpi"><div class="l">過去 3h</div><div class="v" id="now3">—</div></div>
+          <div class="kpi"><div class="l">過去 6h</div><div class="v" id="now6">—</div></div>
+        </div>
+        <div class="risk" id="nowRisk">等待中央氣象署即時實測。</div>
+      </div>
+
+      <div class="model">
+        <div class="modelhead"><h3>雷達 / QPEplus</h3><span class="sourcebadge">中央氣象署</span></div>
+        <div class="muted">
+          短延時強降雨請優先看雷達回波、地面雨量與「雷達定量降雨預報」。
+          全球數值模式不適合拿來判斷下一個對流胞會不會正好打到仁武。
+        </div>
+        <div class="quicklinks">
+          <a href="https://qpeplus.cwa.gov.tw/pub/?tab=monitor" target="_blank" rel="noopener noreferrer">開啟 QPEplus 雷達 / 短延時監測 ↗</a>
+          <a href="https://www.cwa.gov.tw/V8/C/P/QPF.html" target="_blank" rel="noopener noreferrer">開啟 CWA QPF ↗</a>
+        </div>
+        <div class="status">QPEplus 為官方即時監測入口；本頁不自動擷取其地圖內容，避免因網站改版造成錯誤判讀。</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>接下來幾小時｜MSM(日本) 5 km + CWA WRF 3 km</h2>
+    <div class="shortterm">
+      <div class="model">
+        <div class="modelhead"><h3>MSM(日本)</h3><span class="tag" id="msmShortTag">5 km 區域模式</span></div>
+        <div class="kpis">
+          <div class="kpi"><div class="l">未來 1h</div><div class="v" id="msmShort1">—</div></div>
+          <div class="kpi"><div class="l">未來 3h</div><div class="v" id="msmShort3">—</div></div>
+          <div class="kpi"><div class="l">未來 6h</div><div class="v" id="msmShort6">—</div></div>
+          <div class="kpi"><div class="l">24h 內最大 3h</div><div class="v" id="msmShortMax3">—</div></div>
+        </div>
+        <div class="risk" id="msmShortRisk">等待 MSM 預報。</div>
+      </div>
+
+      <div class="model">
+        <div class="modelhead"><h3>CWA WRF 3 km</h3><span class="tag">台灣官方區域模式</span></div>
+        <div class="muted">
+          氣象署開放的是 3×3 km WRF GRIB2 原始格點檔，每 6 小時更新。GitHub Pages 無法合理地在手機端下載並解析大型 GRIB2，
+          因此此區先顯示官方資料狀態與入口；仁武單點 1h / 3h / 6h 數值需要後端或 GitHub Actions 預先轉成 JSON。
+        </div>
+        <div id="wrfStatus" class="status">等待檢查 CWA WRF 3 km 資料狀態。</div>
+        <div class="quicklinks">
+          <a href="https://opendata.cwa.gov.tw/dataset/mathematics/M-A0064-006" target="_blank" rel="noopener noreferrer">WRF 3 km +6h 官方資料 ↗</a>
+          <a href="https://opendata.cwa.gov.tw/dataset/mathematics/M-A0064-012" target="_blank" rel="noopener noreferrer">WRF 3 km +12h 官方資料 ↗</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
     <h2>四套確定性模型｜未來累積雨量</h2>
     <div class="muted">
-      單一模式「未觸及門檻」不代表安全；短時強對流可能被網格平滑或出現時間偏差。這裡把四套模式並排看離散程度。
+      顯示順序以台灣短期使用情境為主：第一排 MSM(日本)、ECMWF(歐洲)；第二排 GFS(美國)、ICON(德國)。
+      「模型未觸及門檻」不代表安全。
     </div>
     <div class="grid4" style="margin-top:14px">
       <div class="model">
-        <div class="modelhead"><h3>NOAA GFS</h3><span class="tag" id="gfsTag">全球模式</span></div>
+        <div class="modelhead"><h3>MSM(日本)</h3><span class="tag" id="jmaTag">5 km 區域模式</span></div>
         <div class="kpis">
-          <div class="kpi"><div class="l">未來 1h</div><div class="v" id="gfs1">—</div></div>
-          <div class="kpi"><div class="l">未來 3h</div><div class="v" id="gfs3">—</div></div>
-          <div class="kpi"><div class="l">未來 6h</div><div class="v" id="gfs6">—</div></div>
-          <div class="kpi"><div class="l">未來 12h</div><div class="v" id="gfs12">—</div></div>
-          <div class="kpi"><div class="l">未來 24h</div><div class="v" id="gfs24">—</div></div>
+          <div class="kpi"><div class="l">未來 1h</div><div class="v" id="jma1">—</div></div>
+          <div class="kpi"><div class="l">未來 3h</div><div class="v" id="jma3">—</div></div>
+          <div class="kpi"><div class="l">未來 6h</div><div class="v" id="jma6">—</div></div>
+          <div class="kpi"><div class="l">未來 12h</div><div class="v" id="jma12">—</div></div>
+          <div class="kpi"><div class="l">未來 24h</div><div class="v" id="jma24">—</div></div>
         </div>
-        <div class="risk" id="gfsRisk">等待資料</div>
+        <div class="risk" id="jmaRisk">等待資料</div>
       </div>
 
       <div class="model">
-        <div class="modelhead"><h3>DWD ICON</h3><span class="tag" id="iconTag">全球模式</span></div>
-        <div class="kpis">
-          <div class="kpi"><div class="l">未來 1h</div><div class="v" id="icon1">—</div></div>
-          <div class="kpi"><div class="l">未來 3h</div><div class="v" id="icon3">—</div></div>
-          <div class="kpi"><div class="l">未來 6h</div><div class="v" id="icon6">—</div></div>
-          <div class="kpi"><div class="l">未來 12h</div><div class="v" id="icon12">—</div></div>
-          <div class="kpi"><div class="l">未來 24h</div><div class="v" id="icon24">—</div></div>
-        </div>
-        <div class="risk" id="iconRisk">等待資料</div>
-      </div>
-
-      <div class="model">
-        <div class="modelhead"><h3>ECMWF IFS</h3><span class="tag" id="ecmwfTag">IFS HRES</span></div>
+        <div class="modelhead"><h3>ECMWF(歐洲)</h3><span class="tag" id="ecmwfTag">IFS HRES</span></div>
         <div class="kpis">
           <div class="kpi"><div class="l">未來 1h</div><div class="v" id="ecmwf1">—</div></div>
           <div class="kpi"><div class="l">未來 3h</div><div class="v" id="ecmwf3">—</div></div>
@@ -140,15 +190,27 @@ a{color:#9bbcff}
       </div>
 
       <div class="model">
-        <div class="modelhead"><h3>JMA</h3><span class="tag" id="jmaTag">MSM 優先</span></div>
+        <div class="modelhead"><h3>GFS(美國)</h3><span class="tag" id="gfsTag">全球模式</span></div>
         <div class="kpis">
-          <div class="kpi"><div class="l">未來 1h</div><div class="v" id="jma1">—</div></div>
-          <div class="kpi"><div class="l">未來 3h</div><div class="v" id="jma3">—</div></div>
-          <div class="kpi"><div class="l">未來 6h</div><div class="v" id="jma6">—</div></div>
-          <div class="kpi"><div class="l">未來 12h</div><div class="v" id="jma12">—</div></div>
-          <div class="kpi"><div class="l">未來 24h</div><div class="v" id="jma24">—</div></div>
+          <div class="kpi"><div class="l">未來 1h</div><div class="v" id="gfs1">—</div></div>
+          <div class="kpi"><div class="l">未來 3h</div><div class="v" id="gfs3">—</div></div>
+          <div class="kpi"><div class="l">未來 6h</div><div class="v" id="gfs6">—</div></div>
+          <div class="kpi"><div class="l">未來 12h</div><div class="v" id="gfs12">—</div></div>
+          <div class="kpi"><div class="l">未來 24h</div><div class="v" id="gfs24">—</div></div>
         </div>
-        <div class="risk" id="jmaRisk">等待資料</div>
+        <div class="risk" id="gfsRisk">等待資料</div>
+      </div>
+
+      <div class="model">
+        <div class="modelhead"><h3>ICON(德國)</h3><span class="tag" id="iconTag">全球模式</span></div>
+        <div class="kpis">
+          <div class="kpi"><div class="l">未來 1h</div><div class="v" id="icon1">—</div></div>
+          <div class="kpi"><div class="l">未來 3h</div><div class="v" id="icon3">—</div></div>
+          <div class="kpi"><div class="l">未來 6h</div><div class="v" id="icon6">—</div></div>
+          <div class="kpi"><div class="l">未來 12h</div><div class="v" id="icon12">—</div></div>
+          <div class="kpi"><div class="l">未來 24h</div><div class="v" id="icon24">—</div></div>
+        </div>
+        <div class="risk" id="iconRisk">等待資料</div>
       </div>
     </div>
   </section>
@@ -200,7 +262,7 @@ a{color:#9bbcff}
     </div>
     <div class="tablewrap">
       <table>
-        <thead><tr><th>等級</th><th>官方門檻</th><th>GFS</th><th>ICON</th><th>ECMWF</th><th>JMA</th><th>模型共識</th></tr></thead>
+        <thead><tr><th>等級</th><th>官方門檻</th><th>MSM(日本)</th><th>ECMWF(歐洲)</th><th>GFS(美國)</th><th>ICON(德國)</th><th>模型共識</th></tr></thead>
         <tbody id="thresholdBody">
           <tr><td>大雨</td><td>1h ≥ 40 或 24h ≥ 80 mm</td><td colspan="5">等待資料</td></tr>
           <tr><td>豪雨</td><td>3h ≥ 100 或 24h ≥ 200 mm</td><td colspan="5">等待資料</td></tr>
@@ -236,7 +298,7 @@ a{color:#9bbcff}
   </section>
 
   <footer>
-    中央氣象署實測：O-A0002-001（優先仁武 C0V680；無即時回傳時自動改用仁武區 CAP040 或最近有效站）。確定性模式：Open-Meteo GFS、ICON、ECMWF IFS、JMA（MSM 優先）。集合模式：Open-Meteo GEFS 與 ICON-EPS。
+    中央氣象署實測：O-A0002-001（優先仁武 C0V680；無即時回傳時自動改用仁武區 CAP040 或最近有效站）。確定性模式：Open-Meteo MSM(日本，JMA MSM 優先)、ECMWF(歐洲)、GFS(美國)、ICON(德國)。CWA WRF 3 km 為官方 GRIB2 rawData，本頁目前只檢查資料狀態，尚未解析單點雨量。集合模式：GEFS 與 ICON-EPS。
     實測值與預報值的時間意義不同，因此本頁不會直接把「過去 24h 實測」與「未來 24h 預報」相加後當作官方 24h 門檻。
     中央氣象署授權碼目前直接內建於此前端檔案。本頁為預報與防災輔助工具，不取代中央氣象署正式警特報。
   </footer>
@@ -295,6 +357,23 @@ function renderModel(prefix,r,sourceLabel){
   if(tag && sourceLabel) tag.textContent=sourceLabel;
 }
 
+function renderMsmShort(r,sourceLabel){
+  $("msmShort1").textContent=fmt(r.r1);
+  $("msmShort3").textContent=fmt(r.r3);
+  $("msmShort6").textContent=fmt(r.r6);
+  $("msmShortMax3").textContent=fmt(r.max3);
+  $("msmShortTag").textContent=sourceLabel||"MSM 5 km";
+  const [cls,txt]=forecastRiskText(r.max1,r.max3,r.r24);
+  $("msmShortRisk").innerHTML=
+    `<strong class="${cls}">${txt}</strong><br>`+
+    `這區優先看未來 1–6 小時；短時對流仍要搭配 QPEplus 雷達。`;
+}
+
+function resetMsmShort(message="MSM 資料不可用"){
+  ["msmShort1","msmShort3","msmShort6","msmShortMax3"].forEach(id=>$(id).textContent="—");
+  $("msmShortRisk").innerHTML=`<strong class="danger">${message}</strong>`;
+}
+
 function thresholdReached(r,kind){
   if(!r) return false;
   if(kind==="heavy") return r.max1>=40||r.r24>=80;
@@ -312,8 +391,8 @@ function thresholdCell(r,kind){
   return `模型未觸及（24h ${r.r24.toFixed(1)}）`;
 }
 
-const MODEL_ORDER=["gfs","icon","ecmwf","jma"];
-const MODEL_NAMES={gfs:"GFS",icon:"ICON",ecmwf:"ECMWF",jma:"JMA"};
+const MODEL_ORDER=["jma","ecmwf","gfs","icon"];
+const MODEL_NAMES={jma:"MSM(日本)",ecmwf:"ECMWF(歐洲)",gfs:"GFS(美國)",icon:"ICON(德國)"};
 
 function renderThresholdsAvailable(models){
   const rows=[
@@ -367,10 +446,10 @@ async function fetchDeterministic(model,lat,lon){
 async function fetchJma(lat,lon){
   try{
     const r=await fetchDeterministic("jma_msm",lat,lon);
-    return {...r,sourceLabel:"JMA MSM"};
+    return {...r,sourceLabel:"MSM 5 km"};
   }catch(msmErr){
     const r=await fetchDeterministic("jma_seamless",lat,lon);
-    return {...r,sourceLabel:"JMA seamless"};
+    return {...r,sourceLabel:"JMA seamless fallback"};
   }
 }
 
@@ -498,7 +577,7 @@ async function updateFree(){
   }
 
   $("refresh").disabled=true;
-  $("mainStatus").textContent="正在讀取 GFS / ICON / ECMWF / JMA 與集合預報…";
+  $("mainStatus").textContent="正在讀取 MSM(日本) / ECMWF(歐洲) / GFS(美國) / ICON(德國) 與集合預報…";
   $("ensembleStatus").textContent="正在讀取 GEFS + ICON-EPS…";
 
   const calls=[
@@ -525,7 +604,7 @@ async function updateFree(){
       renderModel("gfs",models.gfs,"GFS seamless");
     }else{
       resetModel("gfs","GFS 更新失敗");
-      notes.push("GFS："+errText(gRes));
+      notes.push("GFS(美國)："+errText(gRes));
     }
 
     if(iRes.status==="fulfilled"){
@@ -533,7 +612,7 @@ async function updateFree(){
       renderModel("icon",models.icon,"ICON global");
     }else{
       resetModel("icon","ICON 更新失敗");
-      notes.push("ICON："+errText(iRes));
+      notes.push("ICON(德國)："+errText(iRes));
     }
 
     if(eRes.status==="fulfilled"){
@@ -541,15 +620,17 @@ async function updateFree(){
       renderModel("ecmwf",models.ecmwf,"IFS HRES");
     }else{
       resetModel("ecmwf","ECMWF 更新失敗");
-      notes.push("ECMWF："+errText(eRes));
+      notes.push("ECMWF(歐洲)："+errText(eRes));
     }
 
     if(jRes.status==="fulfilled"){
       models.jma=jRes.value.result;
       renderModel("jma",models.jma,jRes.value.sourceLabel);
+      renderMsmShort(models.jma,jRes.value.sourceLabel);
     }else{
-      resetModel("jma","JMA 更新失敗");
-      notes.push("JMA："+errText(jRes));
+      resetModel("jma","MSM(日本) 更新失敗");
+      resetMsmShort("MSM(日本) 更新失敗");
+      notes.push("MSM(日本)："+errText(jRes));
     }
 
     renderThresholdsAvailable(models);
@@ -580,6 +661,7 @@ async function updateFree(){
       `${notes.length?"\n部分模型失敗：\n"+notes.join("\n"):""}`;
   }catch(e){
     ["gfs","icon","ecmwf","jma"].forEach(p=>resetModel(p,"模型更新失敗"));
+    resetMsmShort("MSM(日本) 更新失敗");
     renderThresholdsAvailable({});
     resetConsensus();
     clearEnsemble("gefs","更新失敗");
@@ -804,11 +886,20 @@ async function updateCwa(){
     $("cwa12").textContent=p12.label;
     $("cwa24").textContent=p24.label;
 
+    $("now10").textContent=p10.label;
+    $("now1").textContent=p1.label;
+    $("now3").textContent=p3.label;
+    $("now6").textContent=p6.label;
+
     renderCwaRisk(p1,p3,p24);
 
     const obs=getObsTime(station);
     const name=stationNameOf(station) || "未知";
     const id=stationIdOf(station) || "未知";
+    $("nowStation").textContent=`${name} ${id}`;
+    const nowRiskParts=riskText(p1.value,p3.value,p24.value);
+    $("nowRisk").innerHTML=`<strong class="${nowRiskParts[0]}">${nowRiskParts[1]}</strong><br>`+
+      `觀測時間：${getObsTime(station)}`;
     const geo=getWgs84(station);
     const town=station?.GeoInfo?.TownName || "";
     const county=station?.GeoInfo?.CountyName || "";
@@ -883,6 +974,53 @@ $("refresh").addEventListener("click",updateFree);
 $("cwaBtn").addEventListener("click",updateCwa);
 $("windyBtn").addEventListener("click",updateWindy);
 
+
+async function updateWrfMeta(){
+  const ids=["M-A0064-006","M-A0064-012","M-A0064-018"];
+  const results=[];
+
+  for(const id of ids){
+    try{
+      const u=new URL(`https://opendata.cwa.gov.tw/fileapi/v1/opendataapi/${id}`);
+      u.searchParams.set("Authorization",CWA_API_KEY);
+      u.searchParams.set("format","JSON");
+      const resp=await fetch(u.toString(),{cache:"no-store"});
+      if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data=await resp.json();
+
+      const deep=(node,key)=>{
+        if(!node||typeof node!=="object") return undefined;
+        if(Object.prototype.hasOwnProperty.call(node,key)) return node[key];
+        for(const v of Object.values(node)){
+          const x=deep(v,key);
+          if(x!==undefined) return x;
+        }
+        return undefined;
+      };
+
+      results.push({
+        id,
+        initial:deep(data,"InitialTime")||deep(data,"initialTime")||"未知",
+        hour:deep(data,"ForecastHour")||id.slice(-3)
+      });
+    }catch(e){
+      results.push({id,error:e instanceof Error?e.message:String(e)});
+    }
+  }
+
+  const ok=results.filter(x=>!x.error);
+  if(ok.length){
+    $("wrfStatus").textContent=
+      `CWA WRF 3 km 官方資料可取得 ✅\n`+
+      ok.map(x=>`${x.id}｜預報 +${String(x.hour).padStart(3,"0")}h｜模式起報 ${x.initial}`).join("\n")+
+      `\n\n目前公開資料為 GRIB2 原始格點檔；本純前端頁面暫不直接解析仁武單點雨量。`;
+  }else{
+    $("wrfStatus").textContent=
+      `無法由瀏覽器讀取 WRF metadata（可能是 CORS 或檔案 API 限制）。\n`+
+      `官方 WRF 3 km 資料仍可由下方連結查看；此失敗不影響 MSM / ECMWF / GFS / ICON。`;
+  }
+}
+
 // ---------- Auto refresh ----------
 const CWA_REFRESH_MS = 10 * 60 * 1000;       // 10 minutes
 const MODEL_REFRESH_MS = 60 * 60 * 1000;     // 60 minutes
@@ -913,7 +1051,7 @@ function refreshAutoStatus(){
   $("autoStatus").textContent =
     `自動更新已啟用\n` +
     `中央氣象署：每 10 分鐘｜上次：${formatClock(lastCwaAutoUpdate)}｜下次：約 ${formatClock(nextCwa)}\n` +
-    `四模型 + 集合：每 60 分鐘｜上次：${formatClock(lastModelAutoUpdate)}｜下次：約 ${formatClock(nextModel)}`;
+    `MSM / ECMWF / GFS / ICON + 集合：每 60 分鐘｜上次：${formatClock(lastModelAutoUpdate)}｜下次：約 ${formatClock(nextModel)}`;
 }
 
 async function autoUpdateCwa(){
@@ -927,7 +1065,7 @@ async function autoUpdateCwa(){
 
 async function autoUpdateModels(){
   try{
-    await updateFree();
+    await Promise.allSettled([updateFree(),updateWrfMeta()]);
   }finally{
     lastModelAutoUpdate = new Date();
     refreshAutoStatus();
