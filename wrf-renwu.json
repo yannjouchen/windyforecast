@@ -1,9 +1,0 @@
-{
-  "status": "pending",
-  "message": "Run GitHub Actions: Update Renwu WRF 3km to generate live data.",
-  "target": {
-    "lat": 22.705864872692686,
-    "lon": 120.33468473266137
-  },
-  "forecast": []
-}

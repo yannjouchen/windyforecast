@@ -1,0 +1,25 @@
+node_modules/
+.env
+.env.*
+!.env.example
+
+.DS_Store
+npm-debug.log*
+*.log
+*.zip
+
+# Runtime/download files
+data/*.grb2
+data/*.tmp
+data/.wrf-*
+.wrf_tmp/
+__pycache__/
+*.pyc
+
+# Keep the placeholder/runtime contract JSON tracked for first startup.
+!data/wrf-renwu.json
+
+!data/qpe-renwu.json
+
+.venv/
+data/*.json

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>仁武防災雨量儀表板｜Final</title>
+<title>仁武防災雨量儀表板｜Node + Railway</title>
 <style>
 :root{
   color-scheme:dark;
@@ -70,8 +70,8 @@ a{color:#9bbcff}
 </head>
 <body>
 <div class="wrap">
-  <h1>仁武即時防災雨量儀表板｜Final</h1>
-  <div class="sub">現在看 CWA 實測 / QPEplus｜1–6h 看 MSM｜0–18h 看 CWA WRF 3 km｜1–5天看 ECMWF / GFS / ICON<br>
+  <h1>仁武即時防災雨量儀表板｜Node + Railway</h1>
+  <div class="sub">現在看 CWA 實測 + QPE（新鮮度防護）+ QPEplus｜1–6h 看 MSM｜0–18h 看 CWA WRF 3 km｜1–5天看 ECMWF / GFS / ICON<br>
   預設位置：高雄市仁武區｜22.705864872692686, 120.33468473266137<br>
   自動更新：中央氣象署每 10 分鐘｜MSM / ECMWF / GFS / ICON + 集合模型每 60 分鐘<br>安全修正：API 失敗時會清除舊值，不再以過期資料判斷。</div>
 
@@ -103,7 +103,7 @@ a{color:#9bbcff}
       優先使用仁武 C0V680；若該站暫時未出現在 O-A0002-001 即時回傳中，會自動改用仁武區 CAP040「國一N361K」，再不行則選擇距目前座標最近的有效測站。
     </div>
     <div class="keygrid" style="margin-top:14px">
-      <div class="status" style="margin-top:0">中央氣象署 API 授權碼：已內建｜開啟頁面會自動更新</div>
+      <div class="status" style="margin-top:0">中央氣象署 API：由 Node 後端代理｜API Key 不放在瀏覽器</div>
       <button id="cwaBtn" class="secondary">更新附近實測</button>
     </div>
     <div class="kpis obs">
@@ -115,11 +115,11 @@ a{color:#9bbcff}
       <div class="kpi"><div class="l">過去 24h</div><div class="v" id="cwa24">—</div></div>
     </div>
     <div class="risk" id="cwaRisk">等待中央氣象署實測資料</div>
-    <div id="cwaStatus" class="status">中央氣象署 API 授權碼已內建。開啟頁面會自動讀取 O-A0002-001，優先 C0V680，必要時自動切換附近有效測站。</div>
+    <div id="cwaStatus" class="status">開啟頁面會透過 Node /api/cwa 讀取 O-A0002-001。CWA API Key 只存在本機 .env / Railway Variables。</div>
   </section>
 
   <section class="card" id="now">
-    <h2>① 現在｜CWA 實測 + 雷達 / QPEplus</h2>
+    <h2>① 現在｜CWA 實測 + QPE（新鮮度防護）+ QPEplus</h2>
     <div class="shortterm">
       <div class="model">
         <div class="modelhead"><h3>CWA 附近實測</h3><span class="sourcebadge" id="nowStation">等待測站</span></div>
@@ -133,16 +133,24 @@ a{color:#9bbcff}
       </div>
 
       <div class="model">
-        <div class="modelhead"><h3>雷達 / QPEplus</h3><span class="sourcebadge">中央氣象署</span></div>
-        <div class="muted">
-          短延時強降雨請優先看雷達回波、地面雨量與「雷達定量降雨預報」。
-          全球數值模式不適合拿來判斷下一個對流胞會不會正好打到仁武。
+        <div class="modelhead">
+          <h3>QPE 過去 1h｜雷達 + 雨量站整合估計</h3>
+          <span class="sourcebadge" id="qpeBadge">O-B0045-001</span>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><div class="l">仁武 QPE 過去 1h</div><div class="v" id="qpe1h">—</div></div>
+          <div class="kpi"><div class="l">QPE − 附近測站</div><div class="v" id="qpeGaugeDiff">—</div></div>
+        </div>
+        <div id="qpeRisk" class="risk">
+          等待 Node /api/qpe。QPE 是估計值，不是雨量站實測，也不是未來預報。
+        </div>
+        <div id="qpeStatus" class="status">
+          Node 每 10 分鐘背景讀取中央氣象署 O-B0045-001。≤30 分鐘正常、30–60 分鐘警示、>60 分鐘停止用於判讀。
         </div>
         <div class="quicklinks">
           <a href="https://qpeplus.cwa.gov.tw/pub/?tab=monitor" target="_blank" rel="noopener noreferrer">開啟 QPEplus 雷達 / 短延時監測 ↗</a>
           <a href="https://www.cwa.gov.tw/V8/C/P/QPF.html" target="_blank" rel="noopener noreferrer">開啟 CWA QPF ↗</a>
         </div>
-        <div class="status">QPEplus 為官方即時監測入口；本頁不自動擷取其地圖內容，避免因網站改版造成錯誤判讀。</div>
       </div>
     </div>
   </section>
@@ -170,7 +178,7 @@ a{color:#9bbcff}
           <div class="kpi"><div class="l">未來 0–18h 累積</div><div class="v" id="wrfCum18">—</div></div>
         </div>
         <div id="wrfStatus" class="status">
-          等待讀取 wrf-renwu.json。此 JSON 由 GitHub Actions 從 CWA WRF 3 km GRIB2 自動擷取仁武附近格點產生。
+          等待 Node /api/wrf。Node 會在背景檢查 CWA WRF 起報時間；只有發現新批次時才啟動 Python 下載與解析 GRIB2。
         </div>
         <div class="quicklinks">
           <a href="https://opendata.cwa.gov.tw/dataset/mathematics/M-A0064-006" target="_blank" rel="noopener noreferrer">WRF 3 km 官方資料 ↗</a>
@@ -363,15 +371,15 @@ a{color:#9bbcff}
   </section>
 
   <footer>
-    中央氣象署實測：O-A0002-001（優先仁武 C0V680；無即時回傳時自動改用仁武區 CAP040 或最近有效站）。確定性模式：Open-Meteo MSM(日本，JMA MSM 優先)、ECMWF(歐洲)、GFS(美國)、ICON(德國)。CWA WRF 3 km 由 GitHub Actions 下載官方 GRIB2 rawData，擷取仁武附近格點後產生 wrf-renwu.json；本頁讀取 0–6h、6–12h、12–18h 雨量。集合模式：GEFS 與 ICON-EPS。
+    中央氣象署實測：O-A0002-001（優先仁武 C0V680；無即時回傳時自動改用仁武區 CAP040 或最近有效站）。確定性模式：Open-Meteo MSM(日本，JMA MSM 優先)、ECMWF(歐洲)、GFS(美國)、ICON(德國)。CWA WRF 3 km 由 Node 背景更新器偵測新 InitialTime，再呼叫 Python 下載官方 GRIB2、擷取仁武附近格點並寫入後端資料檔；網頁透過 /api/wrf 讀取。集合模式：GEFS 與 ICON-EPS。
     實測值與預報值的時間意義不同，因此本頁不會直接把「過去 24h 實測」與「未來 24h 預報」相加後當作官方 24h 門檻。
     中央氣象署授權碼目前直接內建於此前端檔案。判讀順序：現在看 CWA/QPEplus；1–6h 看 MSM；0–18h 看 CWA WRF 3 km；1–5天看 ECMWF/GFS/ICON；最後用集合機率與 CWA 門檻確認風險。本頁不取代中央氣象署正式警特報。
-  </footer>
+  <div class="smallnote" style="margin-top:8px">後端狀態：<a href="/api/health" target="_blank" rel="noopener">/api/health</a>｜<a href="/api/qpe/status" target="_blank" rel="noopener">/api/qpe/status</a>｜<a href="/api/wrf/status" target="_blank" rel="noopener">/api/wrf/status</a></div>
+</footer>
 </div>
 
 <script>
 const $=id=>document.getElementById(id);
-const CWA_API_KEY="CWA-A6A7785B-BFE3-4D96-A6DD-EE9724E83D92";
 const fmt=n=>Number.isFinite(n)?`${n.toFixed(n>=100?0:1)} mm`:"—";
 const sum=(a,n)=>a.slice(0,Math.min(n,a.length)).reduce((x,y)=>x+y,0);
 
@@ -928,19 +936,18 @@ function getResourceId(data){
   return data?.result?.resource_id ?? data?.result?.resourceId ?? data?.resource_id ?? null;
 }
 
-async function cwaRequest(key,params={}){
-  const u=new URL("https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0002-001");
-  u.searchParams.set("Authorization",key);
-  u.searchParams.set("format","JSON");
+async function cwaRequest(params={}){
+  const u=new URL("/api/cwa",window.location.origin);
   Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
 
   const resp=await fetch(u.toString(),{cache:"no-store"});
   const text=await resp.text();
   let data;
   try{data=JSON.parse(text);}
-  catch{throw new Error(`CWA 回傳不是 JSON（HTTP ${resp.status}）`);}
+  catch{throw new Error(`Node /api/cwa 回傳不是 JSON（HTTP ${resp.status}）`);}
 
-  if(!resp.ok) throw new Error(`CWA HTTP ${resp.status}`);
+  if(!resp.ok)
+    throw new Error(data?.error || data?.message || `Node /api/cwa HTTP ${resp.status}`);
   if(data.success===false || data.success==="false")
     throw new Error(data?.result?.message || "CWA API 回報失敗");
 
@@ -951,13 +958,13 @@ async function cwaRequest(key,params={}){
   return data;
 }
 
-async function getBestCwaStation(key,lat,lon){
+async function getBestCwaStation(lat,lon){
   const logs=[];
 
   // 1. Prefer the official Renwu station.
   for(const pname of ["StationId","stationId"]){
     try{
-      const data=await cwaRequest(key,{[pname]:"C0V680"});
+      const data=await cwaRequest({[pname]:"C0V680"});
       const st=findStationById(data,"C0V680");
       if(st){
         const c=getWgs84(st);
@@ -975,7 +982,7 @@ async function getBestCwaStation(key,lat,lon){
   // 2. Current active rainfall station inside Renwu District.
   for(const pname of ["StationId","stationId"]){
     try{
-      const data=await cwaRequest(key,{[pname]:"CAP040"});
+      const data=await cwaRequest({[pname]:"CAP040"});
       const st=findStationById(data,"CAP040");
       if(st){
         const c=getWgs84(st);
@@ -985,14 +992,16 @@ async function getBestCwaStation(key,lat,lon){
   }
 
   // 3. Fallback: pull the current station set and calculate nearest station.
-  const data=await cwaRequest(key,{limit:"2000"});
+  const data=await cwaRequest({limit:"2000"});
   const nearest=nearestStation(data,lat,lon);
   if(!nearest) throw new Error("O-A0002-001 中找不到任何有效雨量測站。\n"+logs.join("\n"));
   return {station:nearest.station,distance:nearest.distance,method:"自動選擇距目前座標最近的有效測站",resourceId:getResourceId(data)||"O-A0002-001"};
 }
 
+let latestGaugePast1h = NaN;
+let latestQpePast1h = NaN;
+
 async function updateCwa(){
-  const key=CWA_API_KEY;
   const lat=parseFloat($("lat").value),lon=parseFloat($("lon").value);
 
   if(!Number.isFinite(lat)||!Number.isFinite(lon)){
@@ -1005,7 +1014,7 @@ async function updateCwa(){
   $("cwaStatus").textContent="正在讀取中央氣象署 O-A0002-001…";
 
   try{
-    const result=await getBestCwaStation(key,lat,lon);
+    const result=await getBestCwaStation(lat,lon);
     const station=result.station;
 
     const p10=getCwaRain(station,"Past10Min");
@@ -1014,6 +1023,9 @@ async function updateCwa(){
     const p6=getCwaRain(station,"Past6Hr");
     const p12=getCwaRain(station,"Past12hr");
     const p24=getCwaRain(station,"Past24hr");
+
+    latestGaugePast1h = Number.isFinite(p1.value) ? p1.value : NaN;
+    renderQpeGaugeComparison();
 
     $("cwa10").textContent=p10.label;
     $("cwa1").textContent=p1.label;
@@ -1111,6 +1123,110 @@ $("cwaBtn").addEventListener("click",updateCwa);
 $("windyBtn").addEventListener("click",updateWindy);
 
 
+// ---------- CWA O-B0045-001 QPE point ----------
+function fmtDateTimeTaiwan(value){
+  if(!value) return "未知";
+  const d=new Date(value);
+  if(!Number.isFinite(d.getTime())) return String(value);
+  return d.toLocaleString("zh-TW",{
+    timeZone:"Asia/Taipei",
+    hour12:false,
+    month:"2-digit",day:"2-digit",
+    hour:"2-digit",minute:"2-digit"
+  });
+}
+
+function renderQpeGaugeComparison(){
+  if(Number.isFinite(latestQpePast1h) && Number.isFinite(latestGaugePast1h)){
+    const diff=latestQpePast1h-latestGaugePast1h;
+    $("qpeGaugeDiff").textContent=`${diff>=0?"+":""}${diff.toFixed(1)} mm`;
+  }else{
+    $("qpeGaugeDiff").textContent="—";
+  }
+}
+
+function clearQpeDisplay(message="QPE 資料不可用"){
+  latestQpePast1h=NaN;
+  $("qpe1h").textContent="—";
+  $("qpeBadge").textContent="資料不可用";
+  $("qpeRisk").innerHTML=`<strong class="danger">${message}</strong>`;
+  $("qpeStatus").textContent=
+    "已清除上一筆 QPE 畫面值，避免把舊的過去1小時估計誤認為目前資料。";
+  renderQpeGaugeComparison();
+}
+
+async function updateQpe(){
+  try{
+    const resp=await fetch(`/api/qpe?_=${Date.now()}`,{cache:"no-store"});
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data=await resp.json();
+
+    if(data.status==="pending"){
+      clearQpeDisplay(data.message||"QPE 尚未產生");
+      return;
+    }
+
+    if(data.status!=="ok" || !Number.isFinite(Number(data.past_1h_qpe_mm))){
+      throw new Error(data.message||"QPE 格點目前為缺值");
+    }
+
+    const rawQpe=Number(data.past_1h_qpe_mm);
+    const age=Number(data.age_minutes);
+    const freshness=String(data.freshness||"unknown");
+    const usable=data.usable_for_judgement===true;
+    const gp=data.grid_point||{};
+
+    // 超過失效門檻後，API 保留原始值供追溯，但畫面不再使用它做目前判讀。
+    if(freshness==="expired" || !usable){
+      latestQpePast1h=NaN;
+      $("qpe1h").textContent="—";
+      $("qpeGaugeDiff").textContent="—";
+      $("qpeBadge").textContent="QPE 已過期";
+
+      $("qpeRisk").innerHTML=
+        `<strong class="danger">QPE 超過 60 分鐘，停止判讀</strong><br>`+
+        `最後一筆 QPE：${rawQpe.toFixed(1)} mm（僅供追溯）<br>`+
+        `請改看 CWA 雨量站實測與 QPEplus 雷達。`;
+
+      $("qpeStatus").textContent=
+        `資料時間（台灣）：${fmtDateTimeTaiwan(data.observation_time)}\n`+
+        `資料年齡：${Number.isFinite(age)?age.toFixed(0)+" 分鐘":"未知"}｜狀態：已過期\n`+
+        `QPE 格點：${gp.lat??"?"}, ${gp.lon??"?"}`+
+        `${Number.isFinite(Number(gp.distance_km))?`｜距設定位置 ${Number(gp.distance_km).toFixed(2)} km`:""}\n`+
+        `API 仍保留原始值，但本頁不使用過期 QPE 做風險判讀。`;
+      return;
+    }
+
+    latestQpePast1h=rawQpe;
+    $("qpe1h").textContent=fmt(latestQpePast1h);
+    renderQpeGaugeComparison();
+
+    const warning=freshness==="warning";
+    $("qpeBadge").textContent=warning ? "QPE 資料偏舊" : "O-B0045-001";
+
+    const cls=warning ? "warning" : "uncertain";
+    const title=warning
+      ? "QPE 已超過 30 分鐘，僅供參考"
+      : "過去1h QPE 已更新";
+
+    $("qpeRisk").innerHTML=
+      `<strong class="${cls}">${title}</strong><br>`+
+      `QPE ${latestQpePast1h.toFixed(1)} mm｜附近測站 ${Number.isFinite(latestGaugePast1h)?latestGaugePast1h.toFixed(1)+" mm":"尚未取得"}<br>`+
+      `QPE 是雷達＋雨量站整合估計，不等於測站實測，也不是未來預報。`;
+
+    $("qpeStatus").textContent=
+      `資料時間（台灣）：${fmtDateTimeTaiwan(data.observation_time)}\n`+
+      `資料年齡：${Number.isFinite(age)?age.toFixed(0)+" 分鐘":"未知"}｜狀態：${warning?"偏舊":"新鮮"}\n`+
+      `QPE 格點：${gp.lat??"?"}, ${gp.lon??"?"}`+
+      `${Number.isFinite(Number(gp.distance_km))?`｜距設定位置 ${Number(gp.distance_km).toFixed(2)} km`:""}\n`+
+      `格點：${data.grid?.nx??"?"} × ${data.grid?.ny??"?"}｜解析度約 ${data.grid?.resolution_lon??"?"}°`;
+  }catch(e){
+    clearQpeDisplay(
+      "QPE 更新失敗："+(e instanceof Error?e.message:String(e))
+    );
+  }
+}
+
 // ---------- CWA WRF 3 km point JSON ----------
 function clearWrfPoint(message="WRF 3 km 資料不可用"){
   ["wrf06","wrf12","wrf18","wrfCum18"].forEach(id=>$(id).textContent="—");
@@ -1120,7 +1236,7 @@ function clearWrfPoint(message="WRF 3 km 資料不可用"){
 
 async function updateWrfPoint(){
   try{
-    const resp=await fetch(`./wrf-renwu.json?_=${Date.now()}`,{cache:"no-store"});
+    const resp=await fetch(`/api/wrf?_=${Date.now()}`,{cache:"no-store"});
     if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data=await resp.json();
 
@@ -1156,7 +1272,7 @@ async function updateWrfPoint(){
   }catch(e){
     clearWrfPoint(
       `WRF 3 km 尚未有可用的仁武 JSON：${e instanceof Error?e.message:String(e)}\n`+
-      `若剛上傳 GitHub，請先執行 Actions → Update Renwu WRF 3km。`
+      `Node 背景更新器會自行重試；可查看 /api/wrf/status 與 /api/health。`
     );
   }
 }
@@ -1190,13 +1306,13 @@ function refreshAutoStatus(){
 
   $("autoStatus").textContent =
     `自動更新已啟用\n` +
-    `中央氣象署：每 10 分鐘｜上次：${formatClock(lastCwaAutoUpdate)}｜下次：約 ${formatClock(nextCwa)}\n` +
+    `CWA 實測 + QPE：每 10 分鐘｜上次：${formatClock(lastCwaAutoUpdate)}｜下次：約 ${formatClock(nextCwa)}\n` +
     `MSM / ECMWF / GFS / ICON + 集合：每 60 分鐘｜上次：${formatClock(lastModelAutoUpdate)}｜下次：約 ${formatClock(nextModel)}`;
 }
 
 async function autoUpdateCwa(){
   try{
-    await updateCwa();
+    await Promise.allSettled([updateCwa(),updateQpe()]);
   }finally{
     lastCwaAutoUpdate = new Date();
     refreshAutoStatus();

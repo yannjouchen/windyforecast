@@ -1,0 +1,10 @@
+.git
+.gitignore
+.env
+.env.*
+node_modules
+*.zip
+*.log
+__pycache__
+data/*.grb2
+data/*.tmp

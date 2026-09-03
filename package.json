@@ -1,0 +1,24 @@
+{
+  "name": "windyforecast-renwu",
+  "version": "1.3.0",
+  "private": true,
+  "type": "module",
+  "description": "仁武防災雨量儀表板 - Node + CWA QPE freshness guard + WRF 3km + Railway",
+  "main": "server.mjs",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs",
+    "wrf:check": "node scripts/check-wrf.mjs",
+    "check": "node --check server.mjs && node --check lib/wrf-updater.mjs && node --check lib/qpe-updater.mjs && node --check scripts/check-wrf.mjs && node --check scripts/check-qpe.mjs",
+    "dev:watch": "node --watch server.mjs",
+    "qpe:check": "node scripts/check-qpe.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "fast-xml-parser": "^5.0.0"
+  }
+}
