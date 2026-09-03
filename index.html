@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>仁武防災雨量儀表板 v7 自動更新版</title>
+<title>仁武防災雨量儀表板 v7.1 自動更新修正版</title>
 <style>
 :root{
   color-scheme:dark;
@@ -52,10 +52,10 @@ a{color:#9bbcff}
 </head>
 <body>
 <div class="wrap">
-  <h1>仁武即時防災雨量儀表板 v7｜自動更新版</h1>
+  <h1>仁武即時防災雨量儀表板 v7.1｜自動更新修正版</h1>
   <div class="sub">中央氣象署仁武實測 × GFS + ICON 未來雨量 × Windy Testing 選配<br>
   預設位置：高雄市仁武區｜22.705864872692686, 120.33468473266137<br>
-  自動更新：中央氣象署每 10 分鐘｜GFS + ICON 每 60 分鐘</div>
+  自動更新：中央氣象署每 10 分鐘｜GFS + ICON 每 60 分鐘<br>安全修正：API 失敗時會清除舊值，不再以過期資料判斷。</div>
 
   <section class="card">
     <h2>位置與更新</h2>
@@ -237,7 +237,7 @@ async function fetchOpenMeteo(endpoint,lat,lon){
   u.searchParams.set("latitude",lat);
   u.searchParams.set("longitude",lon);
   u.searchParams.set("hourly","precipitation");
-  u.searchParams.set("forecast_hours","30");
+  u.searchParams.set("forecast_hours","36");
   u.searchParams.set("timezone","Asia/Taipei");
   u.searchParams.set("precipitation_unit","mm");
   const resp=await fetch(u);
@@ -248,12 +248,42 @@ async function fetchOpenMeteo(endpoint,lat,lon){
   if(!times.length||!vals.length) throw new Error("缺少 hourly precipitation");
   const now=Date.now();
   const future=times.map((t,j)=>({t:new Date(t+"+08:00").getTime(),v:Number(vals[j])}))
-    .filter(x=>Number.isFinite(x.v)&&x.t>now-5*60*1000)
+    // Hourly precipitation at T is the accumulation for the preceding hour.
+    // Only future timestamps belong in the forward-looking sequence.
+    .filter(x=>Number.isFinite(x.v)&&x.t>now)
     .sort((a,b)=>a.t-b.t)
     .slice(0,24)
     .map(x=>x.v);
   if(!future.length) throw new Error("沒有未來資料");
   return {raw:data,vals:future,result:evaluate(future)};
+}
+
+function resetModel(prefix,message="資料不可用"){
+  ["1","3","6","12","24"].forEach(k=>$(prefix+k).textContent="—");
+  $(prefix+"Risk").innerHTML=`<strong class="danger">${message}</strong><br><span class="smallnote">已清除上一筆資料，避免誤把舊預報當成目前預報。</span>`;
+}
+
+function resetModelComparison(){
+  $("cmpGfs").textContent="—";
+  $("cmpIcon").textContent="—";
+  $("cmpDiff").textContent="—";
+  $("compareNote").textContent="模型資料不完整，暫停比較；已清除上一筆比較結果。";
+}
+
+function renderThresholdsAvailable(g,i){
+  const rows=[
+    ["大雨","1h ≥ 40 或 24h ≥ 80 mm","heavy"],
+    ["豪雨","3h ≥ 100 或 24h ≥ 200 mm","torrential"],
+    ["大豪雨","3h ≥ 200 或 24h ≥ 350 mm","very"],
+    ["超大豪雨","24h ≥ 500 mm","extreme"]
+  ];
+  const cell=(v,kind)=>v ? thresholdCell(v,kind) : "資料不可用";
+  $("thresholdBody").innerHTML=rows.map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td><td>${cell(g,x[2])}</td><td>${cell(i,x[2])}</td></tr>`).join("");
+}
+
+function clearCwaDisplay(message="中央氣象署資料不可用"){
+  ["cwa10","cwa1","cwa3","cwa6","cwa12","cwa24"].forEach(id=>$(id).textContent="—");
+  $("cwaRisk").innerHTML=`<strong class="danger">${message}</strong><br><span class="smallnote">已清除上一筆觀測值，避免把過期雨量誤認為目前狀況。</span>`;
 }
 
 async function updateFree(){
@@ -269,24 +299,51 @@ async function updateFree(){
       fetchOpenMeteo("https://api.open-meteo.com/v1/dwd-icon",lat,lon)
     ]);
     let g=null,i=null,notes=[];
-    if(gRes.status==="fulfilled"){g=gRes.value.result;renderModel("gfs",g);}
-    else notes.push("GFS 失敗："+gRes.reason.message);
-    if(iRes.status==="fulfilled"){i=iRes.value.result;renderModel("icon",i);}
-    else notes.push("ICON 失敗："+iRes.reason.message);
+    const errText=r=>{
+      if(!r) return "未知錯誤";
+      const reason=r.reason;
+      return reason instanceof Error ? reason.message : String(reason ?? "未知錯誤");
+    };
+
+    if(gRes.status==="fulfilled"){
+      g=gRes.value.result;
+      renderModel("gfs",g);
+    }else{
+      resetModel("gfs","GFS 更新失敗");
+      notes.push("GFS 失敗："+errText(gRes));
+    }
+
+    if(iRes.status==="fulfilled"){
+      i=iRes.value.result;
+      renderModel("icon",i);
+    }else{
+      resetModel("icon","ICON 更新失敗");
+      notes.push("ICON 失敗："+errText(iRes));
+    }
+
+    // Rebuild the table every refresh so stale cells cannot survive a partial failure.
+    renderThresholdsAvailable(g,i);
 
     if(g&&i){
-      renderThresholds(g,i);
       $("cmpGfs").textContent=fmt(g.r24);
       $("cmpIcon").textContent=fmt(i.r24);
       $("cmpDiff").textContent=fmt(Math.abs(g.r24-i.r24));
       const avg=(g.r24+i.r24)/2;
       const pct=avg>0?Math.abs(g.r24-i.r24)/avg*100:0;
       $("compareNote").textContent=`24h 累積差距 ${Math.abs(g.r24-i.r24).toFixed(1)} mm（約 ${pct.toFixed(0)}%）。差距越大，代表單點降雨預報不確定性越高。`;
+    }else{
+      resetModelComparison();
+      if(g) $("cmpGfs").textContent=fmt(g.r24);
+      if(i) $("cmpIcon").textContent=fmt(i.r24);
     }
     const stamp=new Date().toLocaleString("zh-TW",{hour12:false});
     $("mainStatus").textContent=`更新完成：${stamp}\n座標：${lat}, ${lon}${notes.length?"\n"+notes.join("\n"):""}`;
   }catch(e){
-    $("mainStatus").textContent="更新失敗："+e.message;
+    resetModel("gfs","GFS 更新失敗");
+    resetModel("icon","ICON 更新失敗");
+    renderThresholdsAvailable(null,null);
+    resetModelComparison();
+    $("mainStatus").textContent="更新失敗："+(e instanceof Error ? e.message : String(e));
   }finally{
     $("refresh").disabled=false;
   }
@@ -337,7 +394,7 @@ function parseCwaRain(raw){
   if(s==="X" || s==="-99") return {value:NaN,label:"缺值"};
   const n=Number(s);
   if(!Number.isFinite(n)) return {value:NaN,label:"缺值"};
-  if(n===-98) return {value:0,label:"0.0 mm"};
+  // Any negative CWA code is missing/invalid, never zero rainfall.
   if(n<0) return {value:NaN,label:"缺值"};
   return {value:n,label:fmt(n)};
 }
@@ -442,7 +499,15 @@ async function getBestCwaStation(key,lat,lon){
     try{
       const data=await cwaRequest(key,{[pname]:"C0V680"});
       const st=findStationById(data,"C0V680");
-      if(st) return {station:st,distance:haversineKm(lat,lon,...Object.values(getWgs84(st))),method:`仁武 C0V680 (${pname})`,resourceId:getResourceId(data)||"O-A0002-001"};
+      if(st){
+        const c=getWgs84(st);
+        return {
+          station:st,
+          distance:c ? haversineKm(lat,lon,c.lat,c.lon) : NaN,
+          method:`仁武 C0V680 (${pname})`,
+          resourceId:getResourceId(data)||"O-A0002-001"
+        };
+      }
       logs.push(`C0V680：目前即時回傳為空`);
     }catch(e){logs.push(`C0V680：${e.message}`);}
   }
@@ -469,6 +534,12 @@ async function getBestCwaStation(key,lat,lon){
 async function updateCwa(){
   const key=CWA_API_KEY;
   const lat=parseFloat($("lat").value),lon=parseFloat($("lon").value);
+
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)){
+    clearCwaDisplay("座標格式錯誤");
+    $("cwaStatus").textContent="中央氣象署更新失敗：座標格式錯誤。";
+    return;
+  }
 
   $("cwaBtn").disabled=true;
   $("cwaStatus").textContent="正在讀取中央氣象署 O-A0002-001…";
@@ -510,8 +581,14 @@ async function updateCwa(){
       `觀測時間：${obs}\n`+
       `選站方式：${result.method}`;
   }catch(e){
+    clearCwaDisplay("中央氣象署更新失敗");
     $("cwaStatus").textContent=
-      `中央氣象署讀取失敗：\n${e.message}\n\n`+
+      `中央氣象署讀取失敗：
+${e instanceof Error ? e.message : String(e)}
+
+`+
+      `已清除上一筆觀測值，避免顯示過期資料。
+`+
       `資料集應為 O-A0002-001。`;
   }finally{
     $("cwaBtn").disabled=false;
