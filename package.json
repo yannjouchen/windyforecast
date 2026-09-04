@@ -1,9 +1,9 @@
 {
   "name": "windyforecast-renwu",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "private": true,
   "type": "module",
-  "description": "仁武防災雨量儀表板 - v8.1 QPE測站同步 + 10km面積摘要",
+  "description": "仁武防災雨量儀表板 - v9 民眾版首頁 + 專業資料折疊",
   "main": "server.mjs",
   "scripts": {
     "dev": "node server.mjs",
