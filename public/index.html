@@ -127,7 +127,7 @@ a{color:#9bbcff}
 <div class="wrap">
   <h1>仁武即時防災雨量儀表板｜Node + Railway</h1>
   <div class="sub">
-  仁武地區即時降雨、短期趨勢與積水注意判讀。<br>
+  固定服務範圍：高雄市仁武區｜即時降雨、短期趨勢與積水注意判讀。<br>
   一般使用者先看最上方「目前結論」；模型、格點與技術資料保留在下方詳細區。
 </div>
 
@@ -177,18 +177,6 @@ a{color:#9bbcff}
       注意事項：短時天氣仍可能快速變化；若雷達回波快速增強，應優先參考中央氣象署即時資訊。
     </div>
   </section>
-
-  <section class="card">
-    <h2>位置與更新</h2>
-    <div class="controls">
-      <div><label>緯度</label><input id="lat" value="22.705864872692686" inputmode="decimal"></div>
-      <div><label>經度</label><input id="lon" value="120.33468473266137" inputmode="decimal"></div>
-      <button id="refresh">更新四模型 + 集合機率</button>
-    </div>
-    <div id="mainStatus" class="status">尚未更新。</div>
-    <div id="autoStatus" class="status">自動更新已啟用｜CWA：10 分鐘｜MSM/ECMWF/GFS/ICON + 集合：60 分鐘</div>
-  </section>
-
   <section class="card">
     <h2>防災判讀順序</h2>
     <div class="muted">氣象判讀通常不是先選「最準模型」，而是先看觀測，再依預報時效選工具；模式互相比較時要先對齊有效時間。</div>
@@ -640,6 +628,8 @@ a{color:#9bbcff}
 
 <script>
 const $=id=>document.getElementById(id);
+const RENWU_LAT = 22.705864872692686;
+const RENWU_LON = 120.33468473266137;
 const fmt=n=>Number.isFinite(n)?`${n.toFixed(n>=100?0:1)} mm`:"—";
 const sum=(a,n)=>a.slice(0,Math.min(n,a.length)).reduce((x,y)=>x+y,0);
 
@@ -1089,14 +1079,7 @@ function renderEnsemble(prefix,r){
 }
 
 async function updateFree(){
-  const lat=parseFloat($("lat").value),lon=parseFloat($("lon").value);
-  if(!Number.isFinite(lat)||!Number.isFinite(lon)){
-    $("mainStatus").textContent="座標格式錯誤。";
-    return;
-  }
-
-  $("refresh").disabled=true;
-  $("mainStatus").textContent="正在讀取 MSM(日本) / ECMWF(歐洲) / GFS(美國) / ICON(德國) 與集合預報…";
+  const lat=RENWU_LAT,lon=RENWU_LON;
   $("ensembleStatus").textContent="正在讀取 GEFS + ICON-EPS…";
 
   const calls=[
@@ -1191,11 +1174,6 @@ async function updateFree(){
     $("ensembleStatus").textContent=ensembleNotes.length
       ? "集合預報部分失敗：\n"+ensembleNotes.join("\n")
       : "集合預報更新完成。百分比＝集合成員中未來 24h 累積雨量跨過該門檻的比例。";
-
-    const stamp=new Date().toLocaleString("zh-TW",{hour12:false});
-    $("mainStatus").textContent=
-      `更新完成：${stamp}\n座標：${lat}, ${lon}`+
-      `${notes.length?"\n部分模型失敗：\n"+notes.join("\n"):""}`;
   }catch(e){
     ["gfs","icon","ecmwf","jma"].forEach(p=>resetModel(p,"模型更新失敗"));
     resetMsmShort("MSM(日本) 更新失敗");
@@ -1205,9 +1183,7 @@ async function updateFree(){
     clearEnsemble("gefs","更新失敗");
     clearEnsemble("iconeps","更新失敗");
     $("ensembleStatus").textContent="集合預報更新失敗。";
-    $("mainStatus").textContent="更新失敗："+(e instanceof Error?e.message:String(e));
-  }finally{
-    $("refresh").disabled=false;
+    console.error("模式更新失敗：",e);
   }
 }
 
@@ -1396,13 +1372,7 @@ let latestGaugePast1h = NaN;
 let latestQpePast1h = NaN;
 
 async function updateCwa(){
-  const lat=parseFloat($("lat").value),lon=parseFloat($("lon").value);
-
-  if(!Number.isFinite(lat)||!Number.isFinite(lon)){
-    clearCwaDisplay("座標格式錯誤");
-    $("cwaStatus").textContent="中央氣象署更新失敗：座標格式錯誤。";
-    return;
-  }
+  const lat=RENWU_LAT,lon=RENWU_LON;
 
   $("cwaBtn").disabled=true;
   $("cwaStatus").textContent="正在讀取中央氣象署 O-A0002-001…";
@@ -1482,7 +1452,7 @@ ${e instanceof Error ? e.message : String(e)}
 // ---------- Windy Testing ----------
 async function updateWindy(){
   const key=$("windyKey").value.trim();
-  const lat=parseFloat($("lat").value),lon=parseFloat($("lon").value);
+  const lat=RENWU_LAT,lon=RENWU_LON;
   if(!key){$("windyStatus").textContent="請先輸入 Windy Point Forecast key。";return;}
   $("windyBtn").disabled=true;
   $("windyStatus").textContent="正在讀取 Windy…";
@@ -1521,7 +1491,6 @@ async function updateWindy(){
   }
 }
 
-$("refresh").addEventListener("click",updateFree);
 $("cwaBtn").addEventListener("click",updateCwa);
 $("windyBtn").addEventListener("click",updateWindy);
 
@@ -2608,30 +2577,10 @@ const MODEL_REFRESH_MS = 60 * 60 * 1000;     // 60 minutes
 let lastCwaAutoUpdate = null;
 let lastModelAutoUpdate = null;
 
-function formatClock(d){
-  if(!d) return "尚未";
-  return d.toLocaleString("zh-TW",{
-    hour12:false,
-    month:"2-digit",
-    day:"2-digit",
-    hour:"2-digit",
-    minute:"2-digit",
-    second:"2-digit"
-  });
-}
-
 function refreshAutoStatus(){
-  const nextCwa = lastCwaAutoUpdate
-    ? new Date(lastCwaAutoUpdate.getTime() + CWA_REFRESH_MS)
-    : null;
-  const nextModel = lastModelAutoUpdate
-    ? new Date(lastModelAutoUpdate.getTime() + MODEL_REFRESH_MS)
-    : null;
-
-  $("autoStatus").textContent =
-    `自動更新已啟用\n` +
-    `CWA 實測 + QPE：每 10 分鐘｜上次：${formatClock(lastCwaAutoUpdate)}｜下次：約 ${formatClock(nextCwa)}\n` +
-    `MSM / ECMWF / GFS / ICON + 集合：每 60 分鐘｜上次：${formatClock(lastModelAutoUpdate)}｜下次：約 ${formatClock(nextModel)}`;
+  // v9.1: the dashboard is fixed to Renwu and the dedicated update-status
+  // card was removed. Auto refresh still runs; publicUpdated is refreshed
+  // by renderPublicHome().
 }
 
 async function autoUpdateCwa(){

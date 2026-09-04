@@ -1,9 +1,9 @@
 {
   "name": "windyforecast-renwu",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "private": true,
   "type": "module",
-  "description": "仁武防災雨量儀表板 - v9 民眾版首頁 + 專業資料折疊",
+  "description": "仁武防災雨量儀表板 - v9.1 固定仁武位置，移除座標/手動模型更新區",
   "main": "server.mjs",
   "scripts": {
     "dev": "node server.mjs",
