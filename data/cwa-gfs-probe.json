@@ -1,0 +1,57 @@
+{
+  "status": "ok",
+  "mode": "probe",
+  "generated_at": "2026-09-04T03:22:52+00:00",
+  "model": "CWA GFS 0.25° official direct",
+  "cwa_initial_time": "202609031800",
+  "forecast_hour": 24,
+  "usable_for_5day": true,
+  "target": {
+    "lat": 22.705864872692686,
+    "lon": 120.33468473266137
+  },
+  "grid_point": {
+    "lat": 22.75,
+    "lon": 120.25,
+    "distance_km": 9.976
+  },
+  "selected_field": {
+    "message_number": 93,
+    "name": "unknown",
+    "short_name": "unknown",
+    "units": "unknown",
+    "step_type": "accum",
+    "step_range": "0-24",
+    "start_step": 0,
+    "end_step": 24,
+    "raw_precip_mm": 6.0,
+    "valid_time": "2026-09-04T18:00:00+00:00"
+  },
+  "top_candidates": [
+    {
+      "message_number": 93,
+      "score": 1430,
+      "name": "unknown",
+      "short_name": "unknown",
+      "units": "unknown",
+      "step_type": "accum",
+      "step_range": "0-24",
+      "start_step": 0,
+      "end_step": 24
+    },
+    {
+      "message_number": 92,
+      "score": 1280,
+      "name": "unknown",
+      "short_name": "unknown",
+      "units": "unknown",
+      "step_type": "accum",
+      "step_range": "18-24",
+      "start_step": 18,
+      "end_step": 24
+    }
+  ],
+  "source_file": "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Model/M-A0060-024.grb2",
+  "source_file_mb": 59.3,
+  "note": "usable_for_5day=true 才代表 +024 找到的是從模式起報累積到 +24h 的 Total precipitation。若為 false，完整 1–5 天更新不應啟用。"
+}

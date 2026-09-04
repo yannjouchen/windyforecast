@@ -1,0 +1,152 @@
+{
+  "status": "ok",
+  "mode": "full",
+  "schema_version": 1,
+  "generated_at": "2026-09-04T04:15:42+00:00",
+  "model": "CWA GFS 0.25° official direct",
+  "cwa_initial_time": "202609031800",
+  "model_initial_time": "2026-09-03T18:00:00+00:00",
+  "display_timezone": "Asia/Taipei",
+  "precipitation_semantics": "cumulative_from_initial",
+  "target": {
+    "lat": 22.705864872692686,
+    "lon": 120.33468473266137
+  },
+  "grid_point": {
+    "lat": 22.75,
+    "lon": 120.25,
+    "distance_km": 9.976
+  },
+  "forecast": [
+    {
+      "day": 1,
+      "forecast_hour": 24,
+      "period_start_time": "2026-09-03T18:00:00+00:00",
+      "period_end_time": "2026-09-04T18:00:00+00:00",
+      "valid_time": "2026-09-04T18:00:00+00:00",
+      "period_mm": 6.0,
+      "cumulative_mm": 6.0
+    },
+    {
+      "day": 2,
+      "forecast_hour": 48,
+      "period_start_time": "2026-09-04T18:00:00+00:00",
+      "period_end_time": "2026-09-05T18:00:00+00:00",
+      "valid_time": "2026-09-05T18:00:00+00:00",
+      "period_mm": 5.2,
+      "cumulative_mm": 11.2
+    },
+    {
+      "day": 3,
+      "forecast_hour": 72,
+      "period_start_time": "2026-09-05T18:00:00+00:00",
+      "period_end_time": "2026-09-06T18:00:00+00:00",
+      "valid_time": "2026-09-06T18:00:00+00:00",
+      "period_mm": 0.1,
+      "cumulative_mm": 11.3
+    },
+    {
+      "day": 4,
+      "forecast_hour": 96,
+      "period_start_time": "2026-09-06T18:00:00+00:00",
+      "period_end_time": "2026-09-07T18:00:00+00:00",
+      "valid_time": "2026-09-07T18:00:00+00:00",
+      "period_mm": 0.0,
+      "cumulative_mm": 11.3
+    },
+    {
+      "day": 5,
+      "forecast_hour": 120,
+      "period_start_time": "2026-09-07T18:00:00+00:00",
+      "period_end_time": "2026-09-08T18:00:00+00:00",
+      "valid_time": "2026-09-08T18:00:00+00:00",
+      "period_mm": 0.1,
+      "cumulative_mm": 11.4
+    }
+  ],
+  "source_files": [
+    {
+      "forecast_hour": 24,
+      "url": "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Model/M-A0060-024.grb2",
+      "size_mb": 59.3
+    },
+    {
+      "forecast_hour": 48,
+      "url": "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Model/M-A0060-048.grb2",
+      "size_mb": 57.1
+    },
+    {
+      "forecast_hour": 72,
+      "url": "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Model/M-A0060-072.grb2",
+      "size_mb": 58.2
+    },
+    {
+      "forecast_hour": 96,
+      "url": "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Model/M-A0060-096.grb2",
+      "size_mb": 56.2
+    },
+    {
+      "forecast_hour": 120,
+      "url": "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Model/M-A0060-120.grb2",
+      "size_mb": 58.4
+    }
+  ],
+  "grib_fields": [
+    {
+      "forecast_hour": 24,
+      "message_number": 93,
+      "name": "unknown",
+      "short_name": "unknown",
+      "units": "unknown",
+      "step_type": "accum",
+      "step_range": "0-24",
+      "start_step": 0,
+      "end_step": 24
+    },
+    {
+      "forecast_hour": 48,
+      "message_number": 93,
+      "name": "unknown",
+      "short_name": "unknown",
+      "units": "unknown",
+      "step_type": "accum",
+      "step_range": "0-48",
+      "start_step": 0,
+      "end_step": 48
+    },
+    {
+      "forecast_hour": 72,
+      "message_number": 93,
+      "name": "unknown",
+      "short_name": "unknown",
+      "units": "unknown",
+      "step_type": "accum",
+      "step_range": "0-72",
+      "start_step": 0,
+      "end_step": 72
+    },
+    {
+      "forecast_hour": 96,
+      "message_number": 93,
+      "name": "unknown",
+      "short_name": "unknown",
+      "units": "unknown",
+      "step_type": "accum",
+      "step_range": "0-96",
+      "start_step": 0,
+      "end_step": 96
+    },
+    {
+      "forecast_hour": 120,
+      "message_number": 93,
+      "name": "unknown",
+      "short_name": "unknown",
+      "units": "unknown",
+      "step_type": "accum",
+      "step_range": "0-120",
+      "start_step": 0,
+      "end_step": 120
+    }
+  ],
+  "note": "這是 CWA 開放平台提供的 GFS 原始 GRIB2 直讀實驗。每格為模式固定 24h 時段，不等於從瀏覽器現在時間開始的未來24h。"
+}

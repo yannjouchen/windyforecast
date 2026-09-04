@@ -5,6 +5,7 @@ import { promises as fs } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createWrfUpdater } from "./lib/wrf-updater.mjs";
 import { createQpeUpdater } from "./lib/qpe-updater.mjs";
+import { createCwaGfsUpdater } from "./lib/cwa-gfs-updater.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,6 +42,14 @@ const CWA_PROXY_CACHE_MS = Math.max(
   Number(process.env.CWA_PROXY_CACHE_MS || 120000)
 );
 
+const CWA_GFS_ENABLED = /^(1|true|yes|on)$/i.test(
+  String(process.env.CWA_GFS_ENABLED || "false").trim()
+);
+const CWA_GFS_REFRESH_MINUTES = Math.max(
+  60,
+  Number(process.env.CWA_GFS_REFRESH_MINUTES || 360)
+);
+
 await fs.mkdir(DATA_DIR, { recursive: true });
 
 const wrfUpdater = createWrfUpdater({
@@ -60,6 +69,16 @@ const qpeUpdater = createQpeUpdater({
   refreshMinutes: QPE_REFRESH_MINUTES,
   warnMinutes: QPE_WARN_MINUTES,
   expireMinutes: QPE_EXPIRE_MINUTES
+});
+
+const cwaGfsUpdater = createCwaGfsUpdater({
+  enabled: CWA_GFS_ENABLED,
+  cwaApiKey: CWA_API_KEY,
+  targetLat: TARGET_LAT,
+  targetLon: TARGET_LON,
+  dataDir: DATA_DIR,
+  refreshMinutes: CWA_GFS_REFRESH_MINUTES,
+  pythonBin: process.env.PYTHON_BIN || "python3"
 });
 
 // Small in-memory CWA proxy cache so multiple cards/users do not spend
@@ -96,8 +115,10 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 20000) {
 app.get("/api/health", async (_req, res) => {
   const wrf = wrfUpdater.getStatus();
   const qpe = qpeUpdater.getStatus();
+  const cwaGfs = cwaGfsUpdater.getStatus();
   let wrfFile = null;
   let qpeFile = null;
+  let cwaGfsFile = null;
 
   try {
     const raw = await fs.readFile(path.join(DATA_DIR, "wrf-renwu.json"), "utf8");
@@ -126,6 +147,24 @@ app.get("/api/health", async (_req, res) => {
     // File may not exist before the first successful QPE update.
   }
 
+  try {
+    const raw = await fs.readFile(
+      path.join(DATA_DIR, "cwa-gfs-renwu.json"),
+      "utf8"
+    );
+    const data = JSON.parse(raw);
+    cwaGfsFile = {
+      status: data?.status || null,
+      cwa_initial_time: data?.cwa_initial_time || null,
+      generated_at: data?.generated_at || null,
+      forecast_blocks: Array.isArray(data?.forecast)
+        ? data.forecast.length
+        : 0
+    };
+  } catch {
+    // Experimental CWA GFS file may not exist while disabled.
+  }
+
   res.json({
     ok: true,
     service: "windyforecast-renwu",
@@ -136,7 +175,9 @@ app.get("/api/health", async (_req, res) => {
     wrf_file: wrfFile,
     wrf_updater: wrf,
     qpe_file: qpeFile,
-    qpe_updater: qpe
+    qpe_updater: qpe,
+    cwa_gfs_file: cwaGfsFile,
+    cwa_gfs_updater: cwaGfs
   });
 });
 
@@ -278,6 +319,47 @@ app.post("/api/qpe/refresh", async (req, res) => {
   res.json(result);
 });
 
+app.get("/api/cwa-gfs", async (_req, res) => {
+  res.set("Cache-Control", "no-store");
+
+  try {
+    const raw = await fs.readFile(
+      path.join(DATA_DIR, "cwa-gfs-renwu.json"),
+      "utf8"
+    );
+    return res.json(JSON.parse(raw));
+  } catch {
+    return res.json({
+      status: "pending",
+      enabled: CWA_GFS_ENABLED,
+      message: CWA_GFS_ENABLED
+        ? "尚未產生 CWA 官方 GFS 直讀資料；背景更新器會自動嘗試。"
+        : "CWA 官方 GFS 直讀實驗目前未啟用。先執行 npm run gfs:cwa:probe 驗證，再設定 CWA_GFS_ENABLED=true。",
+      updater: cwaGfsUpdater.getStatus()
+    });
+  }
+});
+
+app.get("/api/cwa-gfs/status", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json(cwaGfsUpdater.getStatus());
+});
+
+app.post("/api/cwa-gfs/refresh", async (req, res) => {
+  const configured = String(process.env.ADMIN_TOKEN || "").trim();
+  const supplied = String(req.get("x-admin-token") || "").trim();
+
+  if (!configured || supplied !== configured) {
+    return jsonError(res, 403, "手動 CWA GFS 更新端點未授權");
+  }
+
+  const result = await cwaGfsUpdater.checkAndUpdate({
+    reason: "manual-api",
+    force: true
+  });
+  res.json(result);
+});
+
 app.get("/api/wrf", async (_req, res) => {
   res.set("Cache-Control", "no-store");
 
@@ -343,8 +425,14 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(
     `[server] QPE freshness: warning>${QPE_WARN_MINUTES}m, expire>${QPE_EXPIRE_MINUTES}m`
   );
+  console.log(
+    CWA_GFS_ENABLED
+      ? `[server] CWA GFS direct background check every ${CWA_GFS_REFRESH_MINUTES} minutes`
+      : "[server] CWA GFS direct experiment disabled (CWA_GFS_ENABLED=false)"
+  );
 
   // Do not block server startup on background data collection.
   wrfUpdater.start();
   qpeUpdater.start();
+  cwaGfsUpdater.start();
 });

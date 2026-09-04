@@ -1,17 +1,19 @@
 {
   "name": "windyforecast-renwu",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "private": true,
   "type": "module",
-  "description": "仁武防災雨量儀表板 - 同時段 MSM/WRF 比較 + 民眾版氣象判讀",
+  "description": "仁武防災雨量儀表板 - CWA 官方 GFS 0.25° GRIB2 直讀實驗",
   "main": "server.mjs",
   "scripts": {
     "dev": "node server.mjs",
     "start": "node server.mjs",
     "wrf:check": "node scripts/check-wrf.mjs",
-    "check": "node --check server.mjs && node --check lib/wrf-updater.mjs && node --check lib/qpe-updater.mjs && node --check scripts/check-wrf.mjs && node --check scripts/check-qpe.mjs",
+    "check": "node --check server.mjs && node --check lib/wrf-updater.mjs && node --check lib/qpe-updater.mjs && node --check lib/cwa-gfs-updater.mjs && node --check scripts/check-wrf.mjs && node --check scripts/check-qpe.mjs && node --check scripts/check-cwa-gfs.mjs",
     "dev:watch": "node --watch server.mjs",
-    "qpe:check": "node scripts/check-qpe.mjs"
+    "qpe:check": "node scripts/check-qpe.mjs",
+    "gfs:cwa:probe": "node scripts/check-cwa-gfs.mjs --probe",
+    "gfs:cwa:check": "node scripts/check-cwa-gfs.mjs"
   },
   "engines": {
     "node": ">=20"

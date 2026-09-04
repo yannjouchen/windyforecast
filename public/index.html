@@ -278,6 +278,43 @@ a{color:#9bbcff}
     <div id="longRangeNote" class="trendnote">等待 1–5 天模式資料。</div>
   </section>
 
+
+  <section class="card" id="cwa-gfs-direct">
+    <h2>實驗｜CWA 官方 GFS 0.25° GRIB2 直讀</h2>
+    <div class="muted">
+      這一區暫時不取代上面的 GFS(美國)。它直接讀中央氣象署開放平台提供的 M-A0060 原始 GRIB2，
+      用來驗證 Open-Meteo GFS 與官方原始 GFS 在「相同有效時間窗」下是否接近。
+      為節省下載量，只取 +024 / +048 / +072 / +096 / +120，並且只接受從模式起報累積的 Total precipitation。
+    </div>
+
+    <div class="model" style="margin-top:14px">
+      <div class="modelhead">
+        <h3>CWA GFS 官方直讀</h3>
+        <span class="tag" id="cwaGfsTag">實驗功能</span>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi"><div class="l" id="cwaGfsD1Label">Day 1</div><div class="v" id="cwaGfsD1">—</div></div>
+        <div class="kpi"><div class="l" id="cwaGfsD2Label">Day 2</div><div class="v" id="cwaGfsD2">—</div></div>
+        <div class="kpi"><div class="l" id="cwaGfsD3Label">Day 3</div><div class="v" id="cwaGfsD3">—</div></div>
+        <div class="kpi"><div class="l" id="cwaGfsD4Label">Day 4</div><div class="v" id="cwaGfsD4">—</div></div>
+        <div class="kpi"><div class="l" id="cwaGfsD5Label">Day 5</div><div class="v" id="cwaGfsD5">—</div></div>
+      </div>
+
+      <div id="cwaGfsCompare" class="risk">
+        尚未有官方 GFS 直讀資料。先在本機執行 npm run gfs:cwa:probe。
+      </div>
+      <div id="cwaGfsStatus" class="status">
+        預設不自動下載大型 GFS GRIB2；probe 通過後才建議啟用背景更新。
+      </div>
+      <div class="quicklinks">
+        <a href="https://opendata.cwa.gov.tw/dataset/mathematics/M-A0060-024" target="_blank" rel="noopener noreferrer">CWA GFS +024 官方資料 ↗</a>
+        <a href="https://opendata.cwa.gov.tw/opendatadoc/Model/M-A0060.pdf" target="_blank" rel="noopener noreferrer">GFS 模式說明 PDF ↗</a>
+        <a href="/api/cwa-gfs/status" target="_blank" rel="noopener noreferrer">/api/cwa-gfs/status ↗</a>
+      </div>
+    </div>
+  </section>
+
   <section class="card">
     <h2>補充｜未來 24h 四模型交叉檢查</h2>
     <div class="muted">
@@ -417,7 +454,7 @@ a{color:#9bbcff}
   </section>
 
   <footer>
-    中央氣象署實測：O-A0002-001（優先仁武 C0V680；無即時回傳時自動改用仁武區 CAP040 或最近有效站）。確定性模式：Open-Meteo MSM(日本，JMA MSM 優先)、ECMWF(歐洲)、GFS(美國)、ICON(德國)。CWA WRF 3 km 由 Node 背景更新器偵測新 InitialTime，再呼叫 Python 下載官方 GRIB2、擷取仁武附近格點並寫入後端資料檔；網頁透過 /api/wrf 讀取。集合模式：GEFS 與 ICON-EPS。
+    中央氣象署實測：O-A0002-001（優先仁武 C0V680；無即時回傳時自動改用仁武區 CAP040 或最近有效站）。確定性模式：Open-Meteo MSM(日本，JMA MSM 優先)、ECMWF(歐洲)、GFS(美國)、ICON(德國)。CWA WRF 3 km 由 Node 背景更新器偵測新 InitialTime，再呼叫 Python 下載官方 GRIB2、擷取仁武附近格點並寫入後端資料檔；網頁透過 /api/wrf 讀取。集合模式：GEFS 與 ICON-EPS。實驗來源：CWA M-A0060 GFS 0.25° 原始 GRIB2（不取代既有 Open-Meteo GFS，先做同時段驗證）。
     實測值與預報值的時間意義不同，因此本頁不會直接把「過去 24h 實測」與「未來 24h 預報」相加後當作官方 24h 門檻。
     中央氣象署授權碼只放在 Node 後端環境變數，不會送到瀏覽器。判讀順序：現在與 0–3h 先看 CWA 實測/QPE/QPEplus；數值模式只比較相同有效時間窗；1–5天看 ECMWF/GFS/ICON；最後用集合機率與 CWA 門檻確認風險。本頁不取代中央氣象署正式警特報。
   <div class="smallnote" style="margin-top:8px">後端狀態：<a href="/api/health" target="_blank" rel="noopener">/api/health</a>｜<a href="/api/qpe/status" target="_blank" rel="noopener">/api/qpe/status</a>｜<a href="/api/wrf/status" target="_blank" rel="noopener">/api/wrf/status</a></div>
@@ -432,6 +469,8 @@ const sum=(a,n)=>a.slice(0,Math.min(n,a.length)).reduce((x,y)=>x+y,0);
 let latestMsmFuture6 = NaN;
 let latestMsmShortResult = null;
 let latestMsmSeries = [];
+let latestOpenMeteoGfsSeries = [];
+let latestCwaGfsDirect = null;
 let latestWrfCurrentBlock = null;
 let latestAlignedComparison = null;
 let latestGaugePast10 = NaN;
@@ -799,9 +838,13 @@ async function updateFree(){
 
     if(gRes.status==="fulfilled"){
       models.gfs=gRes.value.result;
+      latestOpenMeteoGfsSeries=gRes.value.series;
       renderModel("gfs",models.gfs,"GFS seamless");
+      renderCwaGfsDirectComparison();
     }else{
+      latestOpenMeteoGfsSeries=[];
       resetModel("gfs","GFS 更新失敗");
+      renderCwaGfsDirectComparison();
       notes.push("GFS(美國)："+errText(gRes));
     }
 
@@ -1319,7 +1362,7 @@ function msmSignalText(r3){
   return {kind:"alert",text:`MSM 未來3h ${fmt(r3)}：短時雨量訊號偏高`};
 }
 
-function sumMsmForExactWindow(series,start,end){
+function sumHourlySeriesForExactWindow(series,start,end){
   if(!Array.isArray(series)||!start||!end) return {ok:false,reason:"資料不足"};
   const startMs=start.getTime(),endMs=end.getTime();
   const hours=(endMs-startMs)/3600000;
@@ -1374,6 +1417,123 @@ function renderPublicWeatherBrief(){
   }else{
     $("briefModels").textContent="尚無完整的 MSM / WRF 同時段比較";
     setBriefBox("briefModelsBox","caution");
+  }
+}
+
+// ---------- Experimental CWA official GFS direct ----------
+function clearCwaGfsDirect(message="CWA 官方 GFS 直讀資料不可用"){
+  latestCwaGfsDirect=null;
+  for(let d=1;d<=5;d++){
+    $(`cwaGfsD${d}`).textContent="—";
+    $(`cwaGfsD${d}Label`).textContent=`Day ${d}`;
+  }
+  $("cwaGfsTag").textContent="實驗功能";
+  $("cwaGfsCompare").innerHTML=`<strong class="uncertain">${message}</strong>`;
+  $("cwaGfsStatus").textContent=
+    "這不影響既有 Open-Meteo GFS；官方直讀目前只作交叉驗證。";
+}
+
+function renderCwaGfsDirectComparison(){
+  if(!latestCwaGfsDirect?.forecast?.length){
+    return;
+  }
+
+  if(!Array.isArray(latestOpenMeteoGfsSeries) || !latestOpenMeteoGfsSeries.length){
+    $("cwaGfsCompare").innerHTML=
+      `<strong class="uncertain">CWA 官方 GFS 已有資料，但 Open-Meteo GFS 尚未完成。</strong><br>`+
+      `等兩邊都可用後，才會用完全相同的有效時間窗比較。`;
+    return;
+  }
+
+  const pairs=[];
+  for(const block of latestCwaGfsDirect.forecast){
+    const start=wrfDate(block.period_start_time);
+    const end=wrfDate(block.period_end_time || block.valid_time);
+    const cwa=Number(block.period_mm);
+    const aligned=sumHourlySeriesForExactWindow(
+      latestOpenMeteoGfsSeries,start,end
+    );
+
+    if(aligned.ok && Number.isFinite(cwa)){
+      pairs.push({
+        day:Number(block.day),
+        start,end,
+        cwa,
+        om:aligned.mm,
+        diff:Math.abs(cwa-aligned.mm)
+      });
+    }
+  }
+
+  if(!pairs.length){
+    $("cwaGfsCompare").innerHTML=
+      `<strong class="warning">兩邊資料都有，但目前沒有可完整對齊的 24h 時段。</strong><br>`+
+      `可能是模式 cycle 或可用歷史小時範圍不同；不做硬比較。`;
+    return;
+  }
+
+  const maxPair=[...pairs].sort((a,b)=>b.diff-a.diff)[0];
+  const meanAbs=pairs.reduce((s,x)=>s+x.diff,0)/pairs.length;
+  const details=pairs.map(x=>
+    `D${x.day} ${formatTaipeiRange(x.start,x.end)}：CWA ${x.cwa.toFixed(1)} / Open-Meteo ${x.om.toFixed(1)} mm`
+  ).join("<br>");
+
+  const kind = maxPair.diff >= 20 ? "warning" : "uncertain";
+  $("cwaGfsCompare").innerHTML=
+    `<strong class="${kind}">同時段 GFS 交叉驗證：${pairs.length}/5 個區段可比較</strong><br>`+
+    `${details}<br>`+
+    `平均絕對差 ${meanAbs.toFixed(1)} mm｜最大差 D${maxPair.day} ${maxPair.diff.toFixed(1)} mm`+
+    `<div class="model-compare-line">CWA 直讀與 Open-Meteo 即使都標示 GFS，也可能因更新 cycle / 後處理不同而有差異；此處只比較相同 valid-time，不把差值當成誰一定比較準。</div>`;
+}
+
+async function updateCwaGfsDirect(){
+  try{
+    const resp=await fetch(`/api/cwa-gfs?_=${Date.now()}`,{cache:"no-store"});
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data=await resp.json();
+
+    if(data.status!=="ok" || !Array.isArray(data.forecast)){
+      clearCwaGfsDirect(
+        data.message || "CWA 官方 GFS 直讀尚未產生"
+      );
+      return;
+    }
+
+    if(data.forecast.length!==5){
+      throw new Error(`預期 5 個 24h 區段，實際 ${data.forecast.length}`);
+    }
+
+    latestCwaGfsDirect=data;
+
+    data.forecast.forEach((block,index)=>{
+      const d=index+1;
+      const start=wrfDate(block.period_start_time);
+      const end=wrfDate(block.period_end_time || block.valid_time);
+      $(`cwaGfsD${d}Label`).textContent=
+        start&&end ? formatTaipeiRange(start,end) : `Day ${d}`;
+      const mm=Number(block.period_mm);
+      $(`cwaGfsD${d}`).textContent=Number.isFinite(mm)?fmt(mm):"—";
+    });
+
+    const initial=wrfDate(data.model_initial_time);
+    $("cwaGfsTag").textContent=initial
+      ? `起報 ${formatTaipeiPoint(initial)}`
+      : "CWA GFS 0.25°";
+
+    const gp=data.grid_point||{};
+    $("cwaGfsStatus").textContent=
+      `讀取成功 ✅｜官方 CWA M-A0060 GRIB2\n`+
+      `模式起報（台灣）：${initial?formatTaipeiPoint(initial):"未知"}\n`+
+      `JSON 產生：${fmtDateTimeTaiwan(data.generated_at)}\n`+
+      `使用格點：${gp.lat??"?"}, ${gp.lon??"?"}`+
+      `${Number.isFinite(Number(gp.distance_km))?`｜距目標 ${Number(gp.distance_km).toFixed(1)} km`:""}\n`+
+      `解析度：0.25°｜5 個固定 24h 區段｜不是從瀏覽器現在開始的「未來 5 天日曆日」。`;
+
+    renderCwaGfsDirectComparison();
+  }catch(e){
+    clearCwaGfsDirect(
+      `CWA 官方 GFS 直讀更新失敗：${e instanceof Error?e.message:String(e)}`
+    );
   }
 }
 
@@ -1456,7 +1616,7 @@ function renderWrfMsmAlignment(){
   const {start,end,item}=latestWrfCurrentBlock;
   const wrfMm=Number(item?.period_mm);
   $("msmAlignedLabel").textContent=`MSM ${formatTaipeiRange(start,end)}`;
-  const aligned=sumMsmForExactWindow(latestMsmSeries,start,end);
+  const aligned=sumHourlySeriesForExactWindow(latestMsmSeries,start,end);
 
   if(!aligned.ok || !Number.isFinite(wrfMm)){
     $("wrfTimeRisk").innerHTML=
@@ -1602,7 +1762,11 @@ async function autoUpdateCwa(){
 
 async function autoUpdateModels(){
   try{
-    await Promise.allSettled([updateFree(),updateWrfPoint()]);
+    await Promise.allSettled([
+      updateFree(),
+      updateWrfPoint(),
+      updateCwaGfsDirect()
+    ]);
   }finally{
     lastModelAutoUpdate = new Date();
     refreshAutoStatus();

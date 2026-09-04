@@ -322,3 +322,111 @@ MSM 的「未來 6h」只在瀏覽器現在時間距離 WRF 固定區段起點�
 - WRF 當前 6h 整段累積包含已經過去的部分，不解讀成「從現在起還會下多少」。
 
 介面中的「雨量訊號低/較明顯」是易懂提示，不是 CWA 警特報分級。
+
+
+## v7：CWA 官方 GFS 0.25° GRIB2 直讀實驗
+
+官方資料系列：`M-A0060-*`。
+
+本版**不取代**既有 Open-Meteo GFS。先確認 CWA 原始 GRIB2 的 precipitation 欄位與累積語意，再決定是否長期啟用。
+
+### 為什麼只抓 +024 / +048 / +072 / +096 / +120？
+
+如果 `Total precipitation` 是從模式起報累積：
+
+```text
++024 cumulative -> Day1
++048 cumulative - +024 -> Day2
++072 cumulative - +048 -> Day3
++096 cumulative - +072 -> Day4
++120 cumulative - +096 -> Day5
+```
+
+只需 5 個 forecast-hour 檔，比把 0–120h 每 6 小時全部下載省很多。
+
+### 第一步：probe，只下載 +024
+
+```powershell
+npm install
+npm run gfs:cwa:probe
+```
+
+成功時重點看：
+
+```json
+{
+  "status": "ok",
+  "mode": "probe",
+  "usable_for_5day": true,
+  "selected_field": {
+    "step_type": "accum",
+    "start_step": 0,
+    "end_step": 24
+  }
+}
+```
+
+只有 `usable_for_5day=true` 才進下一步。
+
+如果看到：
+
+```text
+start_step = 18
+end_step = 24
+```
+
+代表選到「前 6 小時累積」，不能拿它當 0–24h；程式不會硬算。
+
+### 第二步：完整 1–5 天
+
+```powershell
+npm run gfs:cwa:check
+```
+
+成功後：
+
+```text
+data/cwa-gfs-renwu.json
+GET /api/cwa-gfs
+GET /api/cwa-gfs/status
+```
+
+### 第三步：確認後才啟用背景更新
+
+`.env` / Railway Variables：
+
+```env
+CWA_GFS_ENABLED=true
+CWA_GFS_REFRESH_MINUTES=360
+```
+
+背景 updater 每 6 小時檢查一次 `M-A0060-024` cycle；cycle 沒變就沿用 `/data/cwa-gfs-renwu.json`，不重新下載五個 GRIB2。
+
+### Railway Volume
+
+沿用既有：
+
+```env
+DATA_DIR=/data
+```
+
+CWA GFS 最後只留下：
+
+```text
+/data/cwa-gfs-renwu.json
+```
+
+GRIB2 使用 Python temporary directory，解析後刪除，不會長期佔用 Volume。
+
+### 前端
+
+新增「CWA 官方 GFS 0.25° GRIB2 直讀」實驗卡。
+
+如果 Open-Meteo GFS 也可用，前端會把其 hourly precipitation 加總成與 CWA GFS **完全相同的固定 24h valid-time window** 再比較，不會拿「從現在往後 24h」直接對「模式起報 +0–24h」。
+
+### 安全限制
+
+- 官方直讀預設 `CWA_GFS_ENABLED=false`。
+- Full mode 只接受 `startStep=0`、`endStep=24/48/72/96/120` 的累積 precipitation。
+- 不符合累積語意就停止，不猜。
+- CWA GFS 0.25° 是全球模式；仁武最近格點會比 WRF 3 km 遠很多，這是解析度差異，不是程式錯誤。
