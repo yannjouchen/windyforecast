@@ -40,6 +40,8 @@ OUTPUT_JSON = Path(os.environ.get("OUTPUT_JSON", "data/wrf-renwu.json"))
 
 HOURS = (6, 12, 18)
 SOURCE_BASE = "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Model"
+AREA_RADII_KM = (5.0, 10.0)
+AREA_THRESHOLDS_MM = (5.0, 10.0, 20.0, 40.0)
 
 
 def now_iso():
@@ -161,6 +163,110 @@ def convert_to_mm(raw_value, units):
     return raw_value
 
 
+def convert_array_to_mm(values, units):
+    arr = np.asarray(values, dtype=float)
+    u = str(units or "").strip().lower().replace(" ", "")
+
+    if u == "m":
+        return arr * 1000.0
+    if "kg" in u and ("m-2" in u or "m**-2" in u):
+        return arr
+    if u in {"mm", "millimetres", "millimeters"}:
+        return arr
+
+    # CWA documentation defines Total precipitation in mm. Preserve raw
+    # numerical values when the local parameter table cannot decode the unit.
+    return arr
+
+
+def local_area_vectors(values, lats, lons, units):
+    """
+    Return all WRF grid-cell centers within 10 km of the target.
+
+    The distance filter uses a local equirectangular approximation only to
+    select nearby cells. At 10 km scale its error is negligible compared with
+    a 3 km model grid. The target-point distance reported to users still uses
+    haversine_km().
+    """
+    lats = np.asarray(lats, dtype=float)
+    lons = np.asarray(lons, dtype=float)
+    mm = convert_array_to_mm(values, units)
+
+    km_per_degree = 111.195
+    lon_scale = math.cos(math.radians(TARGET_LAT))
+    dy = (lats - TARGET_LAT) * km_per_degree
+    dx = (lons - TARGET_LON) * km_per_degree * lon_scale
+    distances = np.sqrt(dx * dx + dy * dy)
+
+    coord_ok = np.isfinite(lats) & np.isfinite(lons) & np.isfinite(distances)
+    mask = coord_ok & (distances <= max(AREA_RADII_KM) + 0.05)
+
+    if not np.any(mask):
+        raise RuntimeError("WRF 10 km 範圍內找不到任何格點")
+
+    local_mm = np.asarray(mm[mask], dtype=float)
+    # Preserve coordinate membership even if a precipitation cell is missing.
+    local_mm = np.where(
+        np.isfinite(local_mm) & (local_mm >= -0.01) & (local_mm <= 5000),
+        np.maximum(local_mm, 0.0),
+        np.nan,
+    )
+
+    return {
+        "distance_km": np.asarray(distances[mask], dtype=float),
+        "lat": np.asarray(lats[mask], dtype=float),
+        "lon": np.asarray(lons[mask], dtype=float),
+        "mm": local_mm,
+    }
+
+
+def spatial_summary(values_mm, distances_km):
+    values = np.asarray(values_mm, dtype=float)
+    distances = np.asarray(distances_km, dtype=float)
+    result = {}
+
+    for radius in AREA_RADII_KM:
+        mask = (
+            np.isfinite(values)
+            & np.isfinite(distances)
+            & (distances <= radius + 0.05)
+        )
+        vals = values[mask]
+        key = f"radius_{int(radius)}km"
+
+        if vals.size == 0:
+            result[key] = {
+                "radius_km": radius,
+                "valid_cells": 0,
+                "mean_mm": None,
+                "max_mm": None,
+                "p90_mm": None,
+                "coverage_pct": {
+                    f"ge_{int(t)}": None for t in AREA_THRESHOLDS_MM
+                },
+            }
+            continue
+
+        coverage = {
+            f"ge_{int(t)}": round(
+                float(np.count_nonzero(vals >= t)) * 100.0 / float(vals.size),
+                1,
+            )
+            for t in AREA_THRESHOLDS_MM
+        }
+
+        result[key] = {
+            "radius_km": radius,
+            "valid_cells": int(vals.size),
+            "mean_mm": round(float(np.mean(vals)), 1),
+            "max_mm": round(float(np.max(vals)), 1),
+            "p90_mm": round(float(np.percentile(vals, 90)), 1),
+            "coverage_pct": coverage,
+        }
+
+    return result
+
+
 def date_time_to_cycle(data_date, data_time):
     if data_date is None:
         return ""
@@ -268,6 +374,9 @@ def extract_point(path, expected_hour):
                     "raw_precip_mm": round(max(0.0, mm), 4),
                     "grid_lat": float(lats[flat_index]),
                     "grid_lon": float(lons[flat_index]),
+                    "area_vectors": local_area_vectors(
+                        values, lats, lons, units
+                    ),
                     "data_date": to_int(safe_get(gid, "dataDate")),
                     "data_time": to_int(safe_get(gid, "dataTime")),
                     "validity_date": to_int(
@@ -320,9 +429,45 @@ def derive_periods(rows):
     starts = [r["start_step"] for r in rows]
     ends = [r["end_step"] for r in rows]
 
+    # The same WRF grid ordering should be present in all three files.
+    base = rows[0]["area_vectors"]
+    base_dist = np.asarray(base["distance_km"], dtype=float)
+    base_lat = np.asarray(base["lat"], dtype=float)
+    base_lon = np.asarray(base["lon"], dtype=float)
+
+    for row in rows[1:]:
+        area = row["area_vectors"]
+        if len(area["mm"]) != len(base_dist):
+            raise RuntimeError("WRF +006/+012/+018 的 10 km 格點數不一致")
+        if not np.allclose(area["lat"], base_lat, atol=1e-6, equal_nan=True):
+            raise RuntimeError("WRF +006/+012/+018 的區域緯度格點不一致")
+        if not np.allclose(area["lon"], base_lon, atol=1e-6, equal_nan=True):
+            raise RuntimeError("WRF +006/+012/+018 的區域經度格點不一致")
+
+    def safe_period_area(current, previous):
+        current = np.asarray(current, dtype=float)
+        previous = np.asarray(previous, dtype=float)
+        diff = current - previous
+
+        severe_negative = np.isfinite(diff) & (diff < -0.5)
+        if np.count_nonzero(severe_negative) > max(2, int(0.05 * diff.size)):
+            raise RuntimeError(
+                "WRF 區域 Total precipitation 多個格點出現明顯倒退，"
+                "停止面積雨量計算"
+            )
+
+        return np.where(
+            np.isfinite(diff),
+            np.maximum(diff, 0.0),
+            np.nan,
+        )
+
     # A: accumulated from model initial time.
     if starts == [0, 0, 0] and ends == [6, 12, 18]:
         previous = 0.0
+        previous_area = np.zeros_like(
+            np.asarray(rows[0]["area_vectors"]["mm"], dtype=float)
+        )
         result = []
 
         for row in rows:
@@ -336,6 +481,11 @@ def derive_periods(rows):
                 )
 
             period = max(0.0, period)
+            cumulative_area = np.asarray(
+                row["area_vectors"]["mm"], dtype=float
+            )
+            period_area = safe_period_area(cumulative_area, previous_area)
+
             result.append(
                 {
                     "forecast_hour": row["forecast_hour"],
@@ -344,9 +494,11 @@ def derive_periods(rows):
                     "period_end_time": row["valid_time"],
                     "period_mm": round(period, 1),
                     "cumulative_mm": round(cumulative, 1),
+                    "area": spatial_summary(period_area, base_dist),
                 }
             )
             previous = cumulative
+            previous_area = cumulative_area
 
         return "cumulative_from_initial", result
 
@@ -358,6 +510,9 @@ def derive_periods(rows):
         for row in rows:
             period = row["raw_precip_mm"]
             cumulative += period
+            period_area = np.asarray(
+                row["area_vectors"]["mm"], dtype=float
+            )
             result.append(
                 {
                     "forecast_hour": row["forecast_hour"],
@@ -366,6 +521,7 @@ def derive_periods(rows):
                     "period_end_time": row["valid_time"],
                     "period_mm": round(period, 1),
                     "cumulative_mm": round(cumulative, 1),
+                    "area": spatial_summary(period_area, base_dist),
                 }
             )
 
@@ -428,7 +584,7 @@ def main():
         "status": "ok",
         "generated_at": now_iso(),
         "model": "CWA WRF 3 km",
-        "schema_version": 2,
+        "schema_version": 3,
         "cwa_initial_time": (
             EXPECTED_INITIAL
             or rows[0].get("cycle")
@@ -459,6 +615,14 @@ def main():
                 ),
                 3,
             ),
+        },
+        "area_definition": {
+            "radii_km": list(AREA_RADII_KM),
+            "thresholds_mm": list(AREA_THRESHOLDS_MM),
+            "method":
+                "all CWA WRF grid-cell centers within 5/10 km of target",
+            "purpose":
+                "distinguish isolated point maxima from broader rainfall coverage",
         },
         "forecast": forecast,
         "source_files": sources,

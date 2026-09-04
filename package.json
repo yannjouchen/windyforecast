@@ -1,9 +1,9 @@
 {
   "name": "windyforecast-renwu",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "private": true,
   "type": "module",
-  "description": "仁武防災雨量儀表板 - CWA 官方 GFS 0.25° GRIB2 直讀實驗",
+  "description": "仁武防災雨量儀表板 - 5/10 km 面積降雨、覆蓋率與單點/面平均判讀",
   "main": "server.mjs",
   "scripts": {
     "dev": "node server.mjs",

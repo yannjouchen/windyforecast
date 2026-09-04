@@ -50,6 +50,17 @@ button.secondary{background:#263552;color:var(--text);border:1px solid var(--lin
 .brief-item.caution{border-color:#7a6330}
 .brief-item.alert{border-color:#7d4040}
 .model-compare-line{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.area-rain-panel{margin-top:16px;padding:15px;border:1px solid var(--line);border-radius:16px;background:#10182a}
+.area-rain-panel h3{margin:0 0 6px;font-size:18px}
+.area-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.area-card{padding:12px;border-radius:14px;background:#172138;border:1px solid #2a3b60}
+.area-card .area-title{font-weight:800;margin-bottom:3px}
+.area-period{font-size:12px;color:var(--muted);min-height:34px}
+.area-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:10px}
+.area-stat{padding:8px;border-radius:10px;background:#10182a}
+.area-stat .al{font-size:11px;color:var(--muted)}
+.area-stat .av{font-size:15px;font-weight:800;margin-top:2px}
+.area-pattern{margin-top:9px;padding-top:8px;border-top:1px solid var(--line);font-weight:750}
 .ok{color:var(--ok)} .warning{color:var(--warn)} .danger{color:var(--danger)} .uncertain{color:#cbd8f8}
 .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .quicklinks{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 16px}
@@ -81,7 +92,7 @@ footer{margin-top:22px;color:var(--muted);font-size:13px;line-height:1.6}
 a{color:#9bbcff}
 @media(max-width:760px){
  h1{font-size:28px}.grid2,.grid4,.probgrid,.compare,.shortterm,.timeline{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}.controls button{grid-column:1/-1}
- .kpis,.kpis.obs{grid-template-columns:repeat(2,1fr)} .brief-grid{grid-template-columns:1fr} .keygrid{grid-template-columns:1fr}
+ .kpis,.kpis.obs{grid-template-columns:repeat(2,1fr)} .brief-grid,.area-grid{grid-template-columns:1fr} .keygrid{grid-template-columns:1fr}
  table{font-size:12px}
 }
 </style>
@@ -89,7 +100,7 @@ a{color:#9bbcff}
 <body>
 <div class="wrap">
   <h1>仁武即時防災雨量儀表板｜Node + Railway</h1>
-  <div class="sub">現在先看 CWA 實測 + QPE/QPEplus｜0–3h 以雷達短延時為優先｜MSM 與 WRF 只比較相同有效時段｜1–5天看 ECMWF / GFS / ICON<br>
+  <div class="sub">現在先看 CWA 實測 + QPE/QPEplus｜再看仁武周邊 5/10 km 面積降雨｜MSM 與 WRF 同時段比較單點、平均與覆蓋率｜1–5天看 ECMWF / GFS / ICON<br>
   預設位置：高雄市仁武區｜22.705864872692686, 120.33468473266137<br>
   自動更新：中央氣象署每 10 分鐘｜MSM / ECMWF / GFS / ICON + 集合模型每 60 分鐘<br>安全修正：API 失敗時會清除舊值，不再以過期資料判斷。</div>
 
@@ -109,7 +120,7 @@ a{color:#9bbcff}
     <div class="muted">氣象判讀通常不是先選「最準模型」，而是先看觀測，再依預報時效選工具；模式互相比較時要先對齊有效時間。</div>
     <div class="timeline">
       <a href="#now"><strong>① 現在</strong><span>CWA 實測 + QPEplus 雷達<br>判斷正在下什麼</span></a>
-      <a href="#short"><strong>② 接下來幾小時</strong><span>0–3h 先看雷達/QPEplus<br>MSM + WRF 同時段交叉判讀</span></a>
+      <a href="#short"><strong>② 接下來幾小時</strong><span>先看雷達/QPEplus<br>再看 5/10 km 面積降雨與模型分歧</span></a>
       <a href="#days"><strong>③ 1–5 天</strong><span>ECMWF + GFS + ICON<br>看大尺度雨帶與模式共識</span></a>
       <a href="#risk"><strong>④ 風險確認</strong><span>集合機率 + CWA 門檻<br>不把單一「未觸及」當安全</span></a>
     </div>
@@ -232,6 +243,62 @@ a{color:#9bbcff}
         <div class="smallnote">
           MSM 的「未來 1/3/6h」保留給短期趨勢；真正比較 WRF 時，會另外把 MSM 加總成與 WRF 完全相同的固定 6h 有效時段。
         </div>
+      </div>
+    </div>
+
+    <div class="area-rain-panel">
+      <h3>面積降雨｜這是「一格很大」還是「周邊一大片都大」？</h3>
+      <div class="muted">
+        中心點只回答「仁武這一格多少」；積水與區域影響更需要看周邊平均、最大值與雨量覆蓋比例。
+        這裡統一以仁武中心周圍 5 km / 10 km 判讀。MSM 採約 5 km 間距的多點取樣；WRF 與 QPE 使用半徑內所有可用格點。
+      </div>
+
+      <div class="area-grid">
+        <div class="area-card">
+          <div class="area-title">QPE｜已發生</div>
+          <div class="area-period" id="areaQpePeriod">過去 1h</div>
+          <div class="area-stats">
+            <div class="area-stat"><div class="al">5 km 平均</div><div class="av" id="areaQpe5Mean">—</div></div>
+            <div class="area-stat"><div class="al">5 km 最大</div><div class="av" id="areaQpe5Max">—</div></div>
+            <div class="area-stat"><div class="al">10 km 平均</div><div class="av" id="areaQpe10Mean">—</div></div>
+            <div class="area-stat"><div class="al">10 km 最大</div><div class="av" id="areaQpe10Max">—</div></div>
+            <div class="area-stat"><div class="al">10 km ≥20 mm</div><div class="av" id="areaQpeCov20">—</div></div>
+            <div class="area-stat"><div class="al">10 km ≥40 mm</div><div class="av" id="areaQpeCov40">—</div></div>
+          </div>
+          <div class="area-pattern" id="areaQpePattern">等待 QPE 面積資料</div>
+        </div>
+
+        <div class="area-card">
+          <div class="area-title">MSM｜同時段預報</div>
+          <div class="area-period" id="areaMsmPeriod">等待 WRF 目前區段</div>
+          <div class="area-stats">
+            <div class="area-stat"><div class="al">5 km 平均</div><div class="av" id="areaMsm5Mean">—</div></div>
+            <div class="area-stat"><div class="al">5 km 最大</div><div class="av" id="areaMsm5Max">—</div></div>
+            <div class="area-stat"><div class="al">10 km 平均</div><div class="av" id="areaMsm10Mean">—</div></div>
+            <div class="area-stat"><div class="al">10 km 最大</div><div class="av" id="areaMsm10Max">—</div></div>
+            <div class="area-stat"><div class="al">10 km ≥20 mm</div><div class="av" id="areaMsmCov20">—</div></div>
+            <div class="area-stat"><div class="al">10 km ≥40 mm</div><div class="av" id="areaMsmCov40">—</div></div>
+          </div>
+          <div class="area-pattern" id="areaMsmPattern">等待 MSM 面積資料</div>
+        </div>
+
+        <div class="area-card">
+          <div class="area-title">WRF 3 km｜同時段預報</div>
+          <div class="area-period" id="areaWrfPeriod">等待 WRF 面積資料</div>
+          <div class="area-stats">
+            <div class="area-stat"><div class="al">5 km 平均</div><div class="av" id="areaWrf5Mean">—</div></div>
+            <div class="area-stat"><div class="al">5 km 最大</div><div class="av" id="areaWrf5Max">—</div></div>
+            <div class="area-stat"><div class="al">10 km 平均</div><div class="av" id="areaWrf10Mean">—</div></div>
+            <div class="area-stat"><div class="al">10 km 最大</div><div class="av" id="areaWrf10Max">—</div></div>
+            <div class="area-stat"><div class="al">10 km ≥20 mm</div><div class="av" id="areaWrfCov20">—</div></div>
+            <div class="area-stat"><div class="al">10 km ≥40 mm</div><div class="av" id="areaWrfCov40">—</div></div>
+          </div>
+          <div class="area-pattern" id="areaWrfPattern">等待 WRF 面積資料</div>
+        </div>
+      </div>
+
+      <div class="risk" id="areaRainSummary" style="margin-top:10px">
+        等待 QPE / MSM / WRF 面積雨量。這裡判斷的是雨區「局部或廣泛」，不是直接宣告道路一定會積水；實際積水仍受低窪地形、排水系統、集水區與前期含水量影響。
       </div>
     </div>
   </section>
@@ -454,7 +521,7 @@ a{color:#9bbcff}
   </section>
 
   <footer>
-    中央氣象署實測：O-A0002-001（優先仁武 C0V680；無即時回傳時自動改用仁武區 CAP040 或最近有效站）。確定性模式：Open-Meteo MSM(日本，JMA MSM 優先)、ECMWF(歐洲)、GFS(美國)、ICON(德國)。CWA WRF 3 km 由 Node 背景更新器偵測新 InitialTime，再呼叫 Python 下載官方 GRIB2、擷取仁武附近格點並寫入後端資料檔；網頁透過 /api/wrf 讀取。集合模式：GEFS 與 ICON-EPS。實驗來源：CWA M-A0060 GFS 0.25° 原始 GRIB2（不取代既有 Open-Meteo GFS，先做同時段驗證）。
+    中央氣象署實測：O-A0002-001（優先仁武 C0V680；無即時回傳時自動改用仁武區 CAP040 或最近有效站）。確定性模式：Open-Meteo MSM(日本，JMA MSM 優先)、ECMWF(歐洲)、GFS(美國)、ICON(德國)。CWA WRF 3 km 由 Node 背景更新器偵測新 InitialTime，再呼叫 Python 下載官方 GRIB2、計算仁武中心點與 5/10 km 面積統計後寫入後端資料檔；網頁透過 /api/wrf 讀取。集合模式：GEFS 與 ICON-EPS。實驗來源：CWA M-A0060 GFS 0.25° 原始 GRIB2（不取代既有 Open-Meteo GFS，先做同時段驗證）。
     實測值與預報值的時間意義不同，因此本頁不會直接把「過去 24h 實測」與「未來 24h 預報」相加後當作官方 24h 門檻。
     中央氣象署授權碼只放在 Node 後端環境變數，不會送到瀏覽器。判讀順序：現在與 0–3h 先看 CWA 實測/QPE/QPEplus；數值模式只比較相同有效時間窗；1–5天看 ECMWF/GFS/ICON；最後用集合機率與 CWA 門檻確認風險。本頁不取代中央氣象署正式警特報。
   <div class="smallnote" style="margin-top:8px">後端狀態：<a href="/api/health" target="_blank" rel="noopener">/api/health</a>｜<a href="/api/qpe/status" target="_blank" rel="noopener">/api/qpe/status</a>｜<a href="/api/wrf/status" target="_blank" rel="noopener">/api/wrf/status</a></div>
@@ -469,8 +536,10 @@ const sum=(a,n)=>a.slice(0,Math.min(n,a.length)).reduce((x,y)=>x+y,0);
 let latestMsmFuture6 = NaN;
 let latestMsmShortResult = null;
 let latestMsmSeries = [];
+let latestMsmAreaSamples = [];
 let latestOpenMeteoGfsSeries = [];
 let latestCwaGfsDirect = null;
+let latestQpeArea = null;
 let latestWrfCurrentBlock = null;
 let latestAlignedComparison = null;
 let latestGaugePast10 = NaN;
@@ -522,13 +591,14 @@ function renderModel(prefix,r,sourceLabel){
   if(tag && sourceLabel) tag.textContent=sourceLabel;
 }
 
-function renderMsmShort(r,sourceLabel,series=[]){
+function renderMsmShort(r,sourceLabel,series=[],areaSamples=[]){
   $("msmShort1").textContent=fmt(r.r1);
   $("msmShort3").textContent=fmt(r.r3);
   $("msmShort6").textContent=fmt(r.r6);
   latestMsmFuture6=Number(r.r6);
   latestMsmShortResult=r;
   latestMsmSeries=Array.isArray(series)?series:[];
+  latestMsmAreaSamples=Array.isArray(areaSamples)?areaSamples:[];
   $("msmShortMax3").textContent=fmt(r.max3);
   $("msmShortTag").textContent=sourceLabel||"MSM 5 km";
   const [cls,txt]=forecastRiskText(r.max1,r.max3,r.r24);
@@ -538,18 +608,21 @@ function renderMsmShort(r,sourceLabel,series=[]){
     `0–3h 的局部對流仍應優先搭配 CWA 實測、QPE / QPEplus 雷達。`;
   renderWrfMsmAlignment();
   renderPublicWeatherBrief();
+  renderAreaRainfall();
 }
 
 function resetMsmShort(message="MSM 資料不可用"){
   latestMsmFuture6=NaN;
   latestMsmShortResult=null;
   latestMsmSeries=[];
+  latestMsmAreaSamples=[];
   latestAlignedComparison=null;
   ["msmShort1","msmShort3","msmShort6","msmShortMax3","msmAligned"].forEach(id=>$(id).textContent="—");
   $("msmAlignedLabel").textContent="與 WRF 同時段";
   $("msmShortRisk").innerHTML=`<strong class="danger">${message}</strong>`;
   renderWrfMsmAlignment();
   renderPublicWeatherBrief();
+  renderAreaRainfall();
 }
 
 function thresholdReached(r,kind){
@@ -625,13 +698,108 @@ async function fetchDeterministic(model,lat,lon,forecastHours=36,keepHours=24){
   return {raw:data,series,vals:future,result:evaluate(future.slice(0,24))};
 }
 
+function buildMsmAreaSamplePoints(lat,lon){
+  const points=[];
+  const stepKm=5;
+  const radiusKm=10;
+  const latKm=111.195;
+  const lonKm=111.195*Math.max(0.1,Math.cos(lat*Math.PI/180));
+
+  for(let y=-10;y<=10;y+=stepKm){
+    for(let x=-10;x<=10;x+=stepKm){
+      const distance=Math.hypot(x,y);
+      if(distance>radiusKm+0.01) continue;
+      points.push({
+        lat:lat+y/latKm,
+        lon:lon+x/lonKm,
+        offset_x_km:x,
+        offset_y_km:y,
+        distance_km:distance
+      });
+    }
+  }
+
+  // Ensure center is first; this becomes the ordinary MSM point forecast.
+  points.sort((a,b)=>a.distance_km-b.distance_km);
+  return points;
+}
+
+function parseOpenMeteoLocation(data,keepHours=24){
+  const times=data?.hourly?.time||[];
+  const vals=data?.hourly?.precipitation||[];
+  if(!times.length||!vals.length) throw new Error("缺少 hourly precipitation");
+
+  const series=times.map((t,j)=>({
+      t:new Date(t+"+08:00").getTime(),
+      v:vals[j]===null?NaN:Number(vals[j])
+    }))
+    .filter(x=>Number.isFinite(x.t)&&Number.isFinite(x.v))
+    .sort((a,b)=>a.t-b.t);
+
+  const now=Date.now();
+  const future=series.filter(x=>x.t>now).slice(0,keepHours).map(x=>x.v);
+  const minimumRequired=Math.min(20,keepHours);
+  if(future.length<minimumRequired){
+    throw new Error(`未來資料不足（${future.length} 筆）`);
+  }
+
+  return {
+    raw:data,
+    series,
+    vals:future,
+    result:evaluate(future.slice(0,24))
+  };
+}
+
+async function fetchJmaModelArea(model,lat,lon){
+  const points=buildMsmAreaSamplePoints(lat,lon);
+  const u=new URL("https://api.open-meteo.com/v1/forecast");
+  u.searchParams.set("latitude",points.map(p=>p.lat.toFixed(6)).join(","));
+  u.searchParams.set("longitude",points.map(p=>p.lon.toFixed(6)).join(","));
+  u.searchParams.set("hourly","precipitation");
+  u.searchParams.set("forecast_hours","36");
+  u.searchParams.set("past_hours","12");
+  u.searchParams.set("timezone","Asia/Taipei");
+  u.searchParams.set("precipitation_unit","mm");
+  u.searchParams.set("models",model);
+
+  const resp=await fetch(u);
+  if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const payload=await resp.json();
+  const locations=Array.isArray(payload)?payload:[payload];
+
+  if(locations.length!==points.length){
+    throw new Error(
+      `MSM 面積取樣回傳數量不符：expected=${points.length}, actual=${locations.length}`
+    );
+  }
+
+  const samples=locations.map((data,i)=>({
+    ...points[i],
+    ...parseOpenMeteoLocation(data,24)
+  }));
+
+  const center=samples[0];
+  if(!center || center.distance_km>0.01){
+    throw new Error("MSM 面積取樣缺少中心點");
+  }
+
+  return {
+    raw:center.raw,
+    series:center.series,
+    vals:center.vals,
+    result:center.result,
+    areaSamples:samples
+  };
+}
+
 async function fetchJma(lat,lon){
   try{
-    const r=await fetchDeterministic("jma_msm",lat,lon);
-    return {...r,sourceLabel:"MSM 5 km"};
+    const r=await fetchJmaModelArea("jma_msm",lat,lon);
+    return {...r,sourceLabel:"MSM 5 km｜13 點面積取樣"};
   }catch(msmErr){
-    const r=await fetchDeterministic("jma_seamless",lat,lon);
-    return {...r,sourceLabel:"JMA seamless fallback"};
+    const r=await fetchJmaModelArea("jma_seamless",lat,lon);
+    return {...r,sourceLabel:"JMA seamless fallback｜13 點面積取樣"};
   }
 }
 
@@ -867,7 +1035,7 @@ async function updateFree(){
     if(jRes.status==="fulfilled"){
       models.jma=jRes.value.result;
       renderModel("jma",models.jma,jRes.value.sourceLabel);
-      renderMsmShort(models.jma,jRes.value.sourceLabel,jRes.value.series);
+      renderMsmShort(models.jma,jRes.value.sourceLabel,jRes.value.series,jRes.value.areaSamples);
     }else{
       resetModel("jma","MSM(日本) 更新失敗");
       resetMsmShort("MSM(日本) 更新失敗");
@@ -1264,12 +1432,15 @@ function renderQpeGaugeComparison(){
 
 function clearQpeDisplay(message="QPE 資料不可用"){
   latestQpePast1h=NaN;
+  latestQpeArea=null;
   $("qpe1h").textContent="—";
   $("qpeBadge").textContent="資料不可用";
   $("qpeRisk").innerHTML=`<strong class="danger">${message}</strong>`;
   $("qpeStatus").textContent=
     "已清除上一筆 QPE 畫面值，避免把舊的過去1小時估計誤認為目前資料。";
-  renderQpeGaugeComparison();  renderPublicWeatherBrief();
+  renderQpeGaugeComparison();
+  renderPublicWeatherBrief();
+  renderAreaRainfall();
 }
 
 async function updateQpe(){
@@ -1296,7 +1467,9 @@ async function updateQpe(){
     // 超過失效門檻後，API 保留原始值供追溯，但畫面不再使用它做目前判讀。
     if(freshness==="expired" || !usable){
       latestQpePast1h=NaN;
+      latestQpeArea=null;
       renderPublicWeatherBrief();
+      renderAreaRainfall();
       $("qpe1h").textContent="—";
       $("qpeGaugeDiff").textContent="—";
       $("qpeBadge").textContent="QPE 已過期";
@@ -1316,9 +1489,11 @@ async function updateQpe(){
     }
 
     latestQpePast1h=rawQpe;
+    latestQpeArea=data.area||null;
     $("qpe1h").textContent=fmt(latestQpePast1h);
     renderQpeGaugeComparison();
     renderPublicWeatherBrief();
+    renderAreaRainfall();
 
     const warning=freshness==="warning";
     $("qpeBadge").textContent=warning ? "QPE 資料偏舊" : "O-B0045-001";
@@ -1418,6 +1593,229 @@ function renderPublicWeatherBrief(){
     $("briefModels").textContent="尚無完整的 MSM / WRF 同時段比較";
     setBriefBox("briefModelsBox","caution");
   }
+}
+
+// ---------- 5/10 km area-rainfall interpretation ----------
+function areaBlank(prefix){
+  ["5Mean","5Max","10Mean","10Max","Cov20","Cov40"].forEach(s=>{
+    const el=$(`area${prefix}${s}`);
+    if(el) el.textContent="—";
+  });
+}
+
+function areaRadius(area,radius){
+  return area?.[`radius_${radius}km`]||null;
+}
+
+function areaNumber(value,suffix=" mm"){
+  return Number.isFinite(Number(value))
+    ? `${Number(value).toFixed(1)}${suffix}`
+    : "—";
+}
+
+function spatialPattern(area){
+  const r10=areaRadius(area,10);
+  if(!r10 || !Number.isFinite(Number(r10.max_mm))){
+    return {kind:"uncertain",label:"面積資料不足"};
+  }
+
+  const mean=Number(r10.mean_mm);
+  const max=Number(r10.max_mm);
+  const cov20=Number(r10.coverage_pct?.ge_20);
+  const cov40=Number(r10.coverage_pct?.ge_40);
+
+  if(max<5){
+    return {kind:"ok",label:"周邊整體雨量訊號偏低"};
+  }
+  if(cov40>=20 || cov20>=50 || mean>=20){
+    return {kind:"danger",label:"廣泛較強降雨型"};
+  }
+  if(cov20>=20 || mean>=10){
+    return {kind:"warning",label:"分散至較廣泛降雨型"};
+  }
+  if(max>=20 && cov20<20){
+    return {kind:"warning",label:"局部強雨型｜高值只佔小部分區域"};
+  }
+  return {kind:"uncertain",label:"零星至局部降雨型"};
+}
+
+function renderAreaCard(prefix,area,periodText){
+  const pEl=$(`area${prefix}Period`);
+  if(pEl) pEl.textContent=periodText||"時間未知";
+
+  const r5=areaRadius(area,5);
+  const r10=areaRadius(area,10);
+
+  if(!r5 || !r10){
+    areaBlank(prefix);
+    const pattern=$(`area${prefix}Pattern`);
+    if(pattern){
+      pattern.textContent="尚未有 5/10 km 面積統計";
+      pattern.className="area-pattern uncertain";
+    }
+    return;
+  }
+
+  $(`area${prefix}5Mean`).textContent=areaNumber(r5.mean_mm);
+  $(`area${prefix}5Max`).textContent=areaNumber(r5.max_mm);
+  $(`area${prefix}10Mean`).textContent=areaNumber(r10.mean_mm);
+  $(`area${prefix}10Max`).textContent=areaNumber(r10.max_mm);
+  $(`area${prefix}Cov20`).textContent=areaNumber(
+    r10.coverage_pct?.ge_20,"%"
+  );
+  $(`area${prefix}Cov40`).textContent=areaNumber(
+    r10.coverage_pct?.ge_40,"%"
+  );
+
+  const p=spatialPattern(area);
+  const pattern=$(`area${prefix}Pattern`);
+  pattern.textContent=p.label;
+  pattern.className=`area-pattern ${p.kind}`;
+}
+
+function summarizeSampleValues(values){
+  const clean=values.filter(x=>Number.isFinite(x.value));
+  const thresholds=[5,10,20,40];
+
+  function one(radius){
+    const selected=clean.filter(x=>x.distance_km<=radius+0.01);
+    if(!selected.length) return null;
+    const vals=selected.map(x=>x.value);
+    const sorted=[...vals].sort((a,b)=>a-b);
+    const p90=sorted[Math.max(0,Math.ceil(sorted.length*0.9)-1)];
+    return {
+      radius_km:radius,
+      valid_cells:selected.length,
+      mean_mm:vals.reduce((a,b)=>a+b,0)/vals.length,
+      max_mm:Math.max(...vals),
+      p90_mm:p90,
+      coverage_pct:Object.fromEntries(
+        thresholds.map(t=>[
+          `ge_${t}`,
+          100*vals.filter(v=>v>=t).length/vals.length
+        ])
+      )
+    };
+  }
+
+  return {
+    radius_5km:one(5),
+    radius_10km:one(10)
+  };
+}
+
+function msmAreaForExactWindow(start,end){
+  if(!Array.isArray(latestMsmAreaSamples)||!latestMsmAreaSamples.length){
+    return null;
+  }
+
+  const values=[];
+  for(const sample of latestMsmAreaSamples){
+    const aligned=sumHourlySeriesForExactWindow(
+      sample.series,start,end
+    );
+    if(!aligned.ok) continue;
+    values.push({
+      distance_km:Number(sample.distance_km),
+      value:Number(aligned.mm)
+    });
+  }
+
+  return values.length ? summarizeSampleValues(values) : null;
+}
+
+function renderAreaRainfall(){
+  if(!$("areaRainSummary")) return;
+
+  renderAreaCard(
+    "Qpe",
+    latestQpeArea,
+    "過去 1h｜雷達 + 雨量站整合估計"
+  );
+
+  let msmArea=null;
+  let wrfArea=null;
+  let period="等待 WRF 目前區段";
+
+  if(latestWrfCurrentBlock?.start && latestWrfCurrentBlock?.end){
+    const {start,end,item}=latestWrfCurrentBlock;
+    period=formatTaipeiRange(start,end);
+    msmArea=msmAreaForExactWindow(start,end);
+    wrfArea=item?.area||null;
+  }
+
+  renderAreaCard("Msm",msmArea,period);
+  renderAreaCard("Wrf",wrfArea,period);
+
+  const qpe10=areaRadius(latestQpeArea,10);
+  const msm10=areaRadius(msmArea,10);
+  const wrf10=areaRadius(wrfArea,10);
+
+  const lines=[];
+
+  if(qpe10){
+    const qpePattern=spatialPattern(latestQpeArea);
+    lines.push(
+      `<strong class="${qpePattern.kind}">已發生：${qpePattern.label}</strong>｜`+
+      `10 km 平均 ${areaNumber(qpe10.mean_mm)}、最大 ${areaNumber(qpe10.max_mm)}、`+
+      `≥20 mm 覆蓋 ${areaNumber(qpe10.coverage_pct?.ge_20,"%")}。`
+    );
+  }
+
+  if(
+    msm10 && wrf10 &&
+    latestAlignedComparison?.ok &&
+    latestWrfCurrentBlock
+  ){
+    const centerDiff=Math.abs(
+      Number(latestAlignedComparison.msmMm) -
+      Number(latestAlignedComparison.wrfMm)
+    );
+    const meanDiff=Math.abs(
+      Number(msm10.mean_mm) - Number(wrf10.mean_mm)
+    );
+    const covDiff=Math.abs(
+      Number(msm10.coverage_pct?.ge_20) -
+      Number(wrf10.coverage_pct?.ge_20)
+    );
+
+    if(centerDiff>=10 && meanDiff<=5 && covDiff<=20){
+      lines.push(
+        `<strong class="warning">單點差很大，但 10 km 面平均較接近。</strong> `+
+        `這比較像兩模式把雨胞中心放在不同位置；不要只看仁武那一格。`
+      );
+    }else if(meanDiff>=10 || covDiff>=30){
+      lines.push(
+        `<strong class="warning">連 10 km 面平均 / 覆蓋率也差很多。</strong> `+
+        `這代表不只是雨胞偏一格，而是兩模式對整體雨區情境都有明顯分歧。`
+      );
+    }else{
+      lines.push(
+        `<strong class="uncertain">兩模式的 10 km 面積訊號比單點更接近。</strong> `+
+        `單點高值仍可能只是局部雨胞位置差。`
+      );
+    }
+
+    if(
+      Number(wrf10.max_mm)>=20 &&
+      Number(wrf10.coverage_pct?.ge_20)<20
+    ){
+      lines.push(
+        `WRF 雖有高值，但 ≥20 mm 只覆蓋 ${areaNumber(wrf10.coverage_pct?.ge_20,"%")}：`+
+        `偏「局部型」，不能解讀成整個仁武周邊普遍都有相同雨量。`
+      );
+    }
+  }else{
+    lines.push(
+      `MSM / WRF 尚未同時具備目前 6h 區段的面積資料；先看 QPE/QPEplus，等資料完整後再判斷局部或廣泛。`
+    );
+  }
+
+  lines.push(
+    `<div class="model-compare-line">面積降雨能改善「單點誤判」，但仍不是完整淹水模型。道路積水還取決於低窪地形、側溝/箱涵容量、集水區、河川水位與前期含水量。</div>`
+  );
+
+  $("areaRainSummary").innerHTML=lines.join("<br>");
 }
 
 // ---------- Experimental CWA official GFS direct ----------
@@ -1639,7 +2037,7 @@ function renderWrfMsmAlignment(){
   $("wrfTimeRisk").innerHTML=
     `<strong class="${c.kind==="alert"?"warning":c.kind==="good"?"ok":"warning"}">${c.label}</strong><br>`+
     `${formatTaipeiRange(start,end)} 同一時段：MSM ${fmt(msmMm)}｜WRF ${fmt(wrfMm)}｜相差 ${fmt(c.diff)}<br>`+
-    `${detail}<div class="model-compare-line">比較的是「相同有效時間窗」，不是保證兩個模式的起報時間、物理設定完全相同。</div>`;
+    `${detail}<div class="model-compare-line">比較的是「相同有效時間窗」。單點仍可能因雨胞位置偏移而差很多；下方「面積降雨」會再比較 10 km 平均與覆蓋率。</div>`;
   renderPublicWeatherBrief();
 }
 
@@ -1657,6 +2055,7 @@ function clearWrfPoint(message="WRF 3 km 資料不可用"){
   $("wrfTimeRisk").innerHTML=`<strong class="danger">${message}</strong>`;
   $("wrfStatus").textContent=message;
   renderPublicWeatherBrief();
+  renderAreaRainfall();
 }
 
 async function updateWrfPoint(){
@@ -1685,6 +2084,7 @@ async function updateWrfPoint(){
 
     const blocks=[setWrfCard(6,h6),setWrfCard(12,h12),setWrfCard(18,h18)];
     latestWrfCurrentBlock=blocks.find(x=>x.state==="current") || null;
+    renderAreaRainfall();
 
     const derivedInitial=blocks[0]?.start || null;
     const apiInitial=wrfDate(data.model_initial_time);

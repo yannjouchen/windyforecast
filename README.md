@@ -430,3 +430,135 @@ GRIB2 使用 Python temporary directory，解析後刪除，不會長期佔用 V
 - Full mode 只接受 `startStep=0`、`endStep=24/48/72/96/120` 的累積 precipitation。
 - 不符合累積語意就停止，不猜。
 - CWA GFS 0.25° 是全球模式；仁武最近格點會比 WRF 3 km 遠很多，這是解析度差異，不是程式錯誤。
+
+
+## v8：仁武 5 / 10 km 面積降雨判讀
+
+單一格點不能直接回答「整個仁武會不會廣泛積水」。
+
+v8 把短時資料拆成：
+
+```text
+中心點
+5 km 平均 / 最大
+10 km 平均 / 最大
+10 km ≥20 mm 覆蓋率
+10 km ≥40 mm 覆蓋率
+```
+
+### QPE
+
+`O-B0045-001` 原始網格本來就是完整二維格點，因此 Node 在解析時直接計算目標周圍所有 QPE 格點中心：
+
+```json
+"area": {
+  "radius_5km": {
+    "valid_cells": 40,
+    "mean_mm": 1.2,
+    "max_mm": 8.0,
+    "coverage_pct": {
+      "ge_20": 0.0,
+      "ge_40": 0.0
+    }
+  },
+  "radius_10km": {}
+}
+```
+
+QPE 面積統計仍然是「過去 1 小時已發生雨量」。
+
+### CWA WRF 3 km
+
+Python 不再只取最近一格。它會保留 10 km 內所有 WRF 格點的累積 precipitation，
+並在 `0-6 / 6-12 / 12-18h` 差分後，對**每一個格點的 period rain**計算面積統計。
+
+WRF JSON schema 更新為：
+
+```text
+schema_version = 3
+```
+
+每一個 forecast block 都會有：
+
+```json
+"area": {
+  "radius_5km": {},
+  "radius_10km": {}
+}
+```
+
+### MSM
+
+Open-Meteo 官方 API 支援一次要求多組 latitude / longitude。
+v8 在仁武中心建立約 5 km 間距、10 km 半徑內共 13 個取樣點，一次取得 MSM hourly precipitation。
+
+當 WRF 目前區段是：
+
+```text
+08:00–14:00
+```
+
+每一個 MSM 取樣點都先加總成相同 `08:00–14:00`，
+再對 5 km / 10 km 範圍計算平均、最大與覆蓋率。
+
+因此現在可以區分：
+
+```text
+單點差很大，但 10 km 平均接近
+→ 比較像雨胞位置偏移
+
+單點差很大，而且 10 km 平均 / 覆蓋率也差很多
+→ 模式對整體雨區情境真的分歧
+```
+
+### 民眾版文字
+
+介面把面積型態翻譯成：
+
+- 周邊整體雨量訊號偏低
+- 零星至局部降雨型
+- 局部強雨型
+- 分散至較廣泛降雨型
+- 廣泛較強降雨型
+
+這些是本站為了易懂而做的**空間型態描述**，不是中央氣象署警特報等級。
+
+### 重要限制
+
+「面積降雨」比單點更適合判斷區域影響，但仍不等於真正的淹水模型。
+
+道路是否積水還需要：
+
+- 地勢與低窪點
+- 側溝、箱涵、下水道容量
+- 排水分區 / 集水區
+- 河川與區排水位
+- 前期土壤含水量
+- 潮位、抽水站等條件
+
+下一階段若要做真正的「積水風險」，應從圓形 5/10 km 統計升級為**排水集水區平均雨量**。
+
+### v7 → v8 WRF 一次性資料升級
+
+舊 `/data/wrf-renwu.json` 沒有 area 欄位。v8 updater 發現：
+
+```text
+同一 cycle
+但 schema_version < 3
+```
+
+時會重新跑一次 WRF +006/+012/+018，建立面積統計 JSON。
+
+因此 v8 第一次部署可能會重新下載約 500 MB WRF GRIB2；完成後仍沿用 Railway Volume，
+同一 cycle 不會一直重抓。
+
+
+### Git 注意
+
+`data/*.json` 是 runtime state，不應簽入 Git。v8 的 `.gitignore` 已忽略：
+
+```text
+data/*.json
+```
+
+完整 ZIP 也不再包含 placeholder JSON，避免覆蓋你目前本機或 Railway Volume 已經產生的 WRF / QPE / GFS 資料。
