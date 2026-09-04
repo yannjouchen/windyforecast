@@ -280,3 +280,33 @@ QPE_EXPIRE_MINUTES=60
 - `30 < age <= 60 min`：`warning`，黃色「資料偏舊」，仍可參考。
 - `age > 60 min`：`expired`，`usable_for_judgement=false`，主數值顯示 `—`，不再計算 QPE − 測站差值。
 - 原始 QPE 值仍保留在 `/api/qpe` 供追溯。
+
+
+## v5：WRF 實際台灣時間對齊
+
+本版修正一個重要判讀問題：CWA WRF 的 `+006/+012/+018` 是相對於模式起報時間的固定 6 小時區段，不是「從現在開始」的未來 0–6 / 6–12 / 12–18 小時。
+
+後端下一個新 WRF cycle 會新增：
+
+```json
+{
+  "schema_version": 2,
+  "model_initial_time": "2026-09-03T06:00:00+00:00",
+  "forecast": [
+    {
+      "forecast_hour": 6,
+      "period_start_time": "2026-09-03T06:00:00+00:00",
+      "period_end_time": "2026-09-03T12:00:00+00:00"
+    }
+  ]
+}
+```
+
+API 保留 UTC；前端固定轉換成 `Asia/Taipei`。舊 Volume 中的 v4 JSON 即使沒有 `period_start_time`，前端也會用 `valid_time - 6h` 安全推導，所以不必為了 UI 升級強迫重新下載約 500 MB GRIB2。
+
+WRF 卡片會標示：
+- `已結束`
+- `目前時段`
+- `未來`
+
+MSM 的「未來 6h」只在瀏覽器現在時間距離 WRF 固定區段起點不超過 1 小時時才做數值差比較；否則明確顯示「時間窗未對齊，不做直接數值比較」。

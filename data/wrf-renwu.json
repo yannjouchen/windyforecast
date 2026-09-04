@@ -1,0 +1,60 @@
+{
+  "status": "ok",
+  "generated_at": "2026-09-04T09:36:42+08:00",
+  "model": "CWA WRF 3 km",
+  "schema_version": 2,
+  "cwa_initial_time": "202609031800",
+  "model_initial_time": "2026-09-03T18:00:00+00:00",
+  "display_timezone": "Asia/Taipei",
+  "precipitation_semantics": "cumulative_from_initial",
+  "target": {
+    "lat": 22.705864872692686,
+    "lon": 120.33468473266137
+  },
+  "grid_point": {
+    "lat": 22.713138,
+    "lon": 120.329975,
+    "distance_km": 0.942
+  },
+  "forecast": [
+    {
+      "forecast_hour": 6,
+      "valid_time": "2026-09-04T00:00:00+00:00",
+      "period_start_time": "2026-09-03T18:00:00+00:00",
+      "period_end_time": "2026-09-04T00:00:00+00:00",
+      "period_mm": 11.0,
+      "cumulative_mm": 11.0
+    },
+    {
+      "forecast_hour": 12,
+      "valid_time": "2026-09-04T06:00:00+00:00",
+      "period_start_time": "2026-09-04T00:00:00+00:00",
+      "period_end_time": "2026-09-04T06:00:00+00:00",
+      "period_mm": 21.1,
+      "cumulative_mm": 32.1
+    },
+    {
+      "forecast_hour": 18,
+      "valid_time": "2026-09-04T12:00:00+00:00",
+      "period_start_time": "2026-09-04T06:00:00+00:00",
+      "period_end_time": "2026-09-04T12:00:00+00:00",
+      "period_mm": 0.4,
+      "cumulative_mm": 32.5
+    }
+  ],
+  "source_files": [
+    "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Model/M-A0064-006.grb2",
+    "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Model/M-A0064-012.grb2",
+    "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Model/M-A0064-018.grb2"
+  ],
+  "grib_field": {
+    "message_number": 62,
+    "name": "unknown",
+    "short_name": "unknown",
+    "units": "unknown",
+    "step_type": "accum",
+    "step_range_006": "0-6",
+    "step_range_012": "0-12",
+    "step_range_018": "0-18"
+  }
+}

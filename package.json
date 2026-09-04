@@ -1,9 +1,9 @@
 {
   "name": "windyforecast-renwu",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "type": "module",
-  "description": "仁武防災雨量儀表板 - Node + CWA QPE freshness guard + WRF 3km + Railway",
+  "description": "仁武防災雨量儀表板 - QPE freshness + WRF actual Taiwan time alignment + Railway",
   "main": "server.mjs",
   "scripts": {
     "dev": "node server.mjs",

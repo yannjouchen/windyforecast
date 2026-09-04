@@ -20,6 +20,3 @@ __pycache__/
 !data/wrf-renwu.json
 
 !data/qpe-renwu.json
-
-.venv/
-data/*.json

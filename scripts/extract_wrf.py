@@ -18,7 +18,7 @@ import math
 import os
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -183,6 +183,16 @@ def valid_time_string(validity_date, validity_time):
         return d + t
 
 
+def shift_iso_hours(value, hours):
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return (dt + timedelta(hours=hours)).isoformat()
+    except Exception:
+        return None
+
+
 def extract_point(path, expected_hour):
     best_score = -1
     best = None
@@ -330,6 +340,8 @@ def derive_periods(rows):
                 {
                     "forecast_hour": row["forecast_hour"],
                     "valid_time": row["valid_time"],
+                    "period_start_time": shift_iso_hours(row["valid_time"], -6),
+                    "period_end_time": row["valid_time"],
                     "period_mm": round(period, 1),
                     "cumulative_mm": round(cumulative, 1),
                 }
@@ -350,6 +362,8 @@ def derive_periods(rows):
                 {
                     "forecast_hour": row["forecast_hour"],
                     "valid_time": row["valid_time"],
+                    "period_start_time": shift_iso_hours(row["valid_time"], -6),
+                    "period_end_time": row["valid_time"],
                     "period_mm": round(period, 1),
                     "cumulative_mm": round(cumulative, 1),
                 }
@@ -414,11 +428,20 @@ def main():
         "status": "ok",
         "generated_at": now_iso(),
         "model": "CWA WRF 3 km",
+        "schema_version": 2,
         "cwa_initial_time": (
             EXPECTED_INITIAL
             or rows[0].get("cycle")
             or None
         ),
+        # Use GRIB validity time minus 6h as the unambiguous model initial
+        # timestamp. Keep UTC in the API; the browser renders Asia/Taipei.
+        "model_initial_time": (
+            forecast[0].get("period_start_time")
+            if forecast
+            else None
+        ),
+        "display_timezone": "Asia/Taipei",
         "precipitation_semantics": semantics,
         "target": {
             "lat": TARGET_LAT,

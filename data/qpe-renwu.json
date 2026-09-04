@@ -1,0 +1,47 @@
+{
+  "status": "ok",
+  "generated_at": "2026-09-04T01:34:31.271Z",
+  "dataset_id": "O-B0045-001",
+  "source_format": "JSON",
+  "observation_time": "2026-09-04T01:10:00.000Z",
+  "observation_time_source": "cwaopendata.dataset.datasetInfo.parameterSet.DateTime",
+  "age_minutes": 24.5,
+  "freshness": "fresh",
+  "usable_for_judgement": true,
+  "freshness_limits_minutes": {
+    "warning_after": 30,
+    "expire_after": 60
+  },
+  "target": {
+    "lat": 22.705864872692686,
+    "lon": 120.33468473266137
+  },
+  "grid_point": {
+    "row": 216,
+    "column": 187,
+    "flat_index": 95443,
+    "lat": 22.7,
+    "lon": 120.3375,
+    "distance_km": 0.713,
+    "crs": "TWD67 lon/lat grid",
+    "datum_note": "QPE source grid is reported as TWD67 lon/lat in verified samples; target WGS84 coordinate is used directly for nearest-cell lookup. Datum offset is small relative to the 0.0125° grid but can matter near cell boundaries."
+  },
+  "past_1h_qpe_mm": 0,
+  "raw_value": 0,
+  "units": "mm",
+  "grid": {
+    "origin_lon": 118,
+    "origin_lat": 20,
+    "resolution_lon": 0.0125,
+    "resolution_lat": 0.0125,
+    "nx": 441,
+    "ny": 561,
+    "count": 247401,
+    "schema_source": "payload_metadata",
+    "values_path": "cwaopendata.dataset.contents.content",
+    "data_direction": "west_to_east_then_south_to_north"
+  },
+  "note": "QPE is radar + gauge integrated rainfall estimation for the past 1 hour. It is an estimate, not a station measurement and not a future forecast.",
+  "fetched_at": "2026-09-04T01:34:31.272Z",
+  "source_url": "CWA fileapi O-B0045-001 (JSON)"
+}
