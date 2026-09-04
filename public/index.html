@@ -39,6 +39,17 @@ button.secondary{background:#263552;color:var(--text);border:1px solid var(--lin
 .wrf-state.future{color:#9bbcff}
 .kpi .v{font-size:22px;font-weight:750;margin-top:5px;word-break:break-word}.kpi .l{font-size:12px;color:var(--muted)}
 .risk{padding:11px 12px;border-radius:12px;background:#11192b;line-height:1.55}
+.public-brief{margin:0 0 16px;padding:15px;border-radius:16px;background:#10182a;border:1px solid var(--line)}
+.public-brief h3{margin:0 0 10px;font-size:18px}
+.brief-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.brief-item{padding:12px;border-radius:13px;background:#172138;border:1px solid #2a3b60}
+.brief-item .brief-label{font-size:12px;color:var(--muted);margin-bottom:6px}
+.brief-item .brief-main{font-size:16px;font-weight:750;line-height:1.45}
+.brief-item .brief-sub{font-size:12px;color:var(--muted);line-height:1.5;margin-top:5px}
+.brief-item.good{border-color:#315b4a}
+.brief-item.caution{border-color:#7a6330}
+.brief-item.alert{border-color:#7d4040}
+.model-compare-line{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
 .ok{color:var(--ok)} .warning{color:var(--warn)} .danger{color:var(--danger)} .uncertain{color:#cbd8f8}
 .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .quicklinks{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 16px}
@@ -70,7 +81,7 @@ footer{margin-top:22px;color:var(--muted);font-size:13px;line-height:1.6}
 a{color:#9bbcff}
 @media(max-width:760px){
  h1{font-size:28px}.grid2,.grid4,.probgrid,.compare,.shortterm,.timeline{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}.controls button{grid-column:1/-1}
- .kpis,.kpis.obs{grid-template-columns:repeat(2,1fr)} .keygrid{grid-template-columns:1fr}
+ .kpis,.kpis.obs{grid-template-columns:repeat(2,1fr)} .brief-grid{grid-template-columns:1fr} .keygrid{grid-template-columns:1fr}
  table{font-size:12px}
 }
 </style>
@@ -78,7 +89,7 @@ a{color:#9bbcff}
 <body>
 <div class="wrap">
   <h1>仁武即時防災雨量儀表板｜Node + Railway</h1>
-  <div class="sub">現在看 CWA 實測 + QPE（新鮮度防護）+ QPEplus｜1–6h 看 MSM｜WRF 以實際台灣 6h 時段顯示｜1–5天看 ECMWF / GFS / ICON<br>
+  <div class="sub">現在先看 CWA 實測 + QPE/QPEplus｜0–3h 以雷達短延時為優先｜MSM 與 WRF 只比較相同有效時段｜1–5天看 ECMWF / GFS / ICON<br>
   預設位置：高雄市仁武區｜22.705864872692686, 120.33468473266137<br>
   自動更新：中央氣象署每 10 分鐘｜MSM / ECMWF / GFS / ICON + 集合模型每 60 分鐘<br>安全修正：API 失敗時會清除舊值，不再以過期資料判斷。</div>
 
@@ -95,10 +106,10 @@ a{color:#9bbcff}
 
   <section class="card">
     <h2>防災判讀順序</h2>
-    <div class="muted">不要從「哪個模型最准」開始看；先依時間尺度選資料。</div>
+    <div class="muted">氣象判讀通常不是先選「最準模型」，而是先看觀測，再依預報時效選工具；模式互相比較時要先對齊有效時間。</div>
     <div class="timeline">
       <a href="#now"><strong>① 現在</strong><span>CWA 實測 + QPEplus 雷達<br>判斷正在下什麼</span></a>
-      <a href="#short"><strong>② 1–6 小時</strong><span>MSM(日本) 5 km<br>搭配 WRF 3 km 的 0–18h 趨勢</span></a>
+      <a href="#short"><strong>② 接下來幾小時</strong><span>0–3h 先看雷達/QPEplus<br>MSM + WRF 同時段交叉判讀</span></a>
       <a href="#days"><strong>③ 1–5 天</strong><span>ECMWF + GFS + ICON<br>看大尺度雨帶與模式共識</span></a>
       <a href="#risk"><strong>④ 風險確認</strong><span>集合機率 + CWA 門檻<br>不把單一「未觸及」當安全</span></a>
     </div>
@@ -163,7 +174,33 @@ a{color:#9bbcff}
   </section>
 
   <section class="card" id="short">
-    <h2>② 接下來幾小時｜MSM 未來 1–6h + CWA WRF 固定 6h 時段</h2>
+    <h2>② 接下來幾小時｜先看即時，再看同時段模型</h2>
+
+    <div class="public-brief">
+      <h3>一般人先看這裡</h3>
+      <div class="brief-grid">
+        <div class="brief-item" id="briefNowBox">
+          <div class="brief-label">現在附近</div>
+          <div class="brief-main" id="briefNow">等待實測 / QPE</div>
+          <div class="brief-sub">判斷「現在正在下什麼」以測站與雷達估計優先。</div>
+        </div>
+        <div class="brief-item" id="briefNextBox">
+          <div class="brief-label">接下來 0–3 小時</div>
+          <div class="brief-main" id="briefNext">等待 MSM</div>
+          <div class="brief-sub">模式只當趨勢指引；局部雷雨仍以 QPEplus 雷達短延時為優先。</div>
+        </div>
+        <div class="brief-item" id="briefModelsBox">
+          <div class="brief-label">模型是否一致</div>
+          <div class="brief-main" id="briefModels">等待 MSM / WRF 同時段資料</div>
+          <div class="brief-sub">模型差很多時不要取平均，代表降雨位置或強度的不確定性較高。</div>
+        </div>
+      </div>
+      <div class="smallnote" style="margin-top:10px">
+        判讀順序：現在/0–3h 看觀測與雷達 → 同一有效時間窗比較 MSM 與 WRF → 再看較長時間趨勢。
+        本頁的「雨量訊號低/較明顯」是易懂提示，不是中央氣象署警特報等級。
+      </div>
+    </div>
+
     <div class="shortterm">
       <div class="model">
         <div class="modelhead"><h3>MSM(日本)</h3><span class="tag" id="msmShortTag">5 km 區域模式</span></div>
@@ -171,6 +208,7 @@ a{color:#9bbcff}
           <div class="kpi"><div class="l">未來 1h</div><div class="v" id="msmShort1">—</div></div>
           <div class="kpi"><div class="l">未來 3h</div><div class="v" id="msmShort3">—</div></div>
           <div class="kpi"><div class="l">未來 6h</div><div class="v" id="msmShort6">—</div></div>
+          <div class="kpi"><div class="l" id="msmAlignedLabel">與 WRF 同時段</div><div class="v" id="msmAligned">—</div></div>
           <div class="kpi"><div class="l">24h 內最大 3h</div><div class="v" id="msmShortMax3">—</div></div>
         </div>
         <div class="risk" id="msmShortRisk">等待 MSM 預報。</div>
@@ -192,7 +230,7 @@ a{color:#9bbcff}
           <a href="https://opendata.cwa.gov.tw/dataset/mathematics/M-A0064-006" target="_blank" rel="noopener noreferrer">WRF 3 km 官方資料 ↗</a>
         </div>
         <div class="smallnote">
-          MSM 顯示從現在往後的 1h / 3h / 6h；WRF 顯示模式固定的 6h 區段。只有時間窗接近對齊時才做數值比較。
+          MSM 的「未來 1/3/6h」保留給短期趨勢；真正比較 WRF 時，會另外把 MSM 加總成與 WRF 完全相同的固定 6h 有效時段。
         </div>
       </div>
     </div>
@@ -381,7 +419,7 @@ a{color:#9bbcff}
   <footer>
     中央氣象署實測：O-A0002-001（優先仁武 C0V680；無即時回傳時自動改用仁武區 CAP040 或最近有效站）。確定性模式：Open-Meteo MSM(日本，JMA MSM 優先)、ECMWF(歐洲)、GFS(美國)、ICON(德國)。CWA WRF 3 km 由 Node 背景更新器偵測新 InitialTime，再呼叫 Python 下載官方 GRIB2、擷取仁武附近格點並寫入後端資料檔；網頁透過 /api/wrf 讀取。集合模式：GEFS 與 ICON-EPS。
     實測值與預報值的時間意義不同，因此本頁不會直接把「過去 24h 實測」與「未來 24h 預報」相加後當作官方 24h 門檻。
-    中央氣象署授權碼只放在 Node 後端環境變數，不會送到瀏覽器。判讀順序：現在看 CWA 實測/QPE/QPEplus；1–6h 看 MSM；WRF 3 km 看固定 6h 區段趨勢；1–5天看 ECMWF/GFS/ICON；最後用集合機率與 CWA 門檻確認風險。本頁不取代中央氣象署正式警特報。
+    中央氣象署授權碼只放在 Node 後端環境變數，不會送到瀏覽器。判讀順序：現在與 0–3h 先看 CWA 實測/QPE/QPEplus；數值模式只比較相同有效時間窗；1–5天看 ECMWF/GFS/ICON；最後用集合機率與 CWA 門檻確認風險。本頁不取代中央氣象署正式警特報。
   <div class="smallnote" style="margin-top:8px">後端狀態：<a href="/api/health" target="_blank" rel="noopener">/api/health</a>｜<a href="/api/qpe/status" target="_blank" rel="noopener">/api/qpe/status</a>｜<a href="/api/wrf/status" target="_blank" rel="noopener">/api/wrf/status</a></div>
 </footer>
 </div>
@@ -392,7 +430,11 @@ const fmt=n=>Number.isFinite(n)?`${n.toFixed(n>=100?0:1)} mm`:"—";
 const sum=(a,n)=>a.slice(0,Math.min(n,a.length)).reduce((x,y)=>x+y,0);
 
 let latestMsmFuture6 = NaN;
+let latestMsmShortResult = null;
+let latestMsmSeries = [];
 let latestWrfCurrentBlock = null;
+let latestAlignedComparison = null;
+let latestGaugePast10 = NaN;
 
 const rollingMax=(arr,n)=>{
   if(!arr.length) return 0;
@@ -441,25 +483,34 @@ function renderModel(prefix,r,sourceLabel){
   if(tag && sourceLabel) tag.textContent=sourceLabel;
 }
 
-function renderMsmShort(r,sourceLabel){
+function renderMsmShort(r,sourceLabel,series=[]){
   $("msmShort1").textContent=fmt(r.r1);
   $("msmShort3").textContent=fmt(r.r3);
   $("msmShort6").textContent=fmt(r.r6);
   latestMsmFuture6=Number(r.r6);
+  latestMsmShortResult=r;
+  latestMsmSeries=Array.isArray(series)?series:[];
   $("msmShortMax3").textContent=fmt(r.max3);
   $("msmShortTag").textContent=sourceLabel||"MSM 5 km";
   const [cls,txt]=forecastRiskText(r.max1,r.max3,r.r24);
   $("msmShortRisk").innerHTML=
     `<strong class="${cls}">${txt}</strong><br>`+
-    `這區優先看未來 1–6 小時；短時對流仍要搭配 QPEplus 雷達。`;
+    `未來 3h：${fmt(r.r3)}｜未來 6h：${fmt(r.r6)}<br>`+
+    `0–3h 的局部對流仍應優先搭配 CWA 實測、QPE / QPEplus 雷達。`;
   renderWrfMsmAlignment();
+  renderPublicWeatherBrief();
 }
 
 function resetMsmShort(message="MSM 資料不可用"){
   latestMsmFuture6=NaN;
-  ["msmShort1","msmShort3","msmShort6","msmShortMax3"].forEach(id=>$(id).textContent="—");
+  latestMsmShortResult=null;
+  latestMsmSeries=[];
+  latestAlignedComparison=null;
+  ["msmShort1","msmShort3","msmShort6","msmShortMax3","msmAligned"].forEach(id=>$(id).textContent="—");
+  $("msmAlignedLabel").textContent="與 WRF 同時段";
   $("msmShortRisk").innerHTML=`<strong class="danger">${message}</strong>`;
   renderWrfMsmAlignment();
+  renderPublicWeatherBrief();
 }
 
 function thresholdReached(r,kind){
@@ -506,6 +557,8 @@ async function fetchDeterministic(model,lat,lon,forecastHours=36,keepHours=24){
   u.searchParams.set("longitude",lon);
   u.searchParams.set("hourly","precipitation");
   u.searchParams.set("forecast_hours",String(forecastHours));
+  // Current WRF 6h block may already have started; keep enough prior hourly MSM values to align it.
+  u.searchParams.set("past_hours","12");
   u.searchParams.set("timezone","Asia/Taipei");
   u.searchParams.set("precipitation_unit","mm");
   u.searchParams.set("models",model);
@@ -517,19 +570,20 @@ async function fetchDeterministic(model,lat,lon,forecastHours=36,keepHours=24){
   const vals=data.hourly?.precipitation||[];
   if(!times.length||!vals.length) throw new Error("缺少 hourly precipitation");
 
-  const now=Date.now();
-  const future=times.map((t,j)=>({
+  // Open-Meteo precipitation at timestamp T is the sum of the preceding hour.
+  // Example: 09:00 represents 08:00–09:00.
+  const series=times.map((t,j)=>({
       t:new Date(t+"+08:00").getTime(),
       v:vals[j]===null?NaN:Number(vals[j])
     }))
-    .filter(x=>Number.isFinite(x.v)&&x.t>now)
-    .sort((a,b)=>a.t-b.t)
-    .slice(0,keepHours)
-    .map(x=>x.v);
+    .filter(x=>Number.isFinite(x.t)&&Number.isFinite(x.v))
+    .sort((a,b)=>a.t-b.t);
 
+  const now=Date.now();
+  const future=series.filter(x=>x.t>now).slice(0,keepHours).map(x=>x.v);
   const minimumRequired=Math.min(20,keepHours);
   if(future.length<minimumRequired) throw new Error(`未來資料不足（${future.length} 筆）`);
-  return {raw:data,vals:future,result:evaluate(future.slice(0,24))};
+  return {raw:data,series,vals:future,result:evaluate(future.slice(0,24))};
 }
 
 async function fetchJma(lat,lon){
@@ -770,7 +824,7 @@ async function updateFree(){
     if(jRes.status==="fulfilled"){
       models.jma=jRes.value.result;
       renderModel("jma",models.jma,jRes.value.sourceLabel);
-      renderMsmShort(models.jma,jRes.value.sourceLabel);
+      renderMsmShort(models.jma,jRes.value.sourceLabel,jRes.value.series);
     }else{
       resetModel("jma","MSM(日本) 更新失敗");
       resetMsmShort("MSM(日本) 更新失敗");
@@ -1039,8 +1093,10 @@ async function updateCwa(){
     const p12=getCwaRain(station,"Past12hr");
     const p24=getCwaRain(station,"Past24hr");
 
+    latestGaugePast10 = Number.isFinite(p10.value) ? p10.value : NaN;
     latestGaugePast1h = Number.isFinite(p1.value) ? p1.value : NaN;
     renderQpeGaugeComparison();
+    renderPublicWeatherBrief();
 
     $("cwa10").textContent=p10.label;
     $("cwa1").textContent=p1.label;
@@ -1077,6 +1133,9 @@ async function updateCwa(){
       `觀測時間：${obs}\n`+
       `選站方式：${result.method}`;
   }catch(e){
+    latestGaugePast10=NaN;
+    latestGaugePast1h=NaN;
+    renderPublicWeatherBrief();
     clearCwaDisplay("中央氣象署更新失敗");
     $("cwaStatus").textContent=
       `中央氣象署讀取失敗：
@@ -1167,7 +1226,7 @@ function clearQpeDisplay(message="QPE 資料不可用"){
   $("qpeRisk").innerHTML=`<strong class="danger">${message}</strong>`;
   $("qpeStatus").textContent=
     "已清除上一筆 QPE 畫面值，避免把舊的過去1小時估計誤認為目前資料。";
-  renderQpeGaugeComparison();
+  renderQpeGaugeComparison();  renderPublicWeatherBrief();
 }
 
 async function updateQpe(){
@@ -1194,6 +1253,7 @@ async function updateQpe(){
     // 超過失效門檻後，API 保留原始值供追溯，但畫面不再使用它做目前判讀。
     if(freshness==="expired" || !usable){
       latestQpePast1h=NaN;
+      renderPublicWeatherBrief();
       $("qpe1h").textContent="—";
       $("qpeGaugeDiff").textContent="—";
       $("qpeBadge").textContent="QPE 已過期";
@@ -1215,6 +1275,7 @@ async function updateQpe(){
     latestQpePast1h=rawQpe;
     $("qpe1h").textContent=fmt(latestQpePast1h);
     renderQpeGaugeComparison();
+    renderPublicWeatherBrief();
 
     const warning=freshness==="warning";
     $("qpeBadge").textContent=warning ? "QPE 資料偏舊" : "O-B0045-001";
@@ -1239,6 +1300,80 @@ async function updateQpe(){
     clearQpeDisplay(
       "QPE 更新失敗："+(e instanceof Error?e.message:String(e))
     );
+  }
+}
+
+// ---------- Public reading + same-valid-time comparison ----------
+function setBriefBox(boxId,kind){
+  const box=$(boxId);
+  if(!box) return;
+  box.classList.remove("good","caution","alert");
+  if(kind) box.classList.add(kind);
+}
+
+function msmSignalText(r3){
+  if(!Number.isFinite(r3)) return {kind:"caution",text:"MSM 資料不足"};
+  if(r3<1) return {kind:"good",text:`MSM 未來3h ${fmt(r3)}：雨量訊號偏低`};
+  if(r3<10) return {kind:"caution",text:`MSM 未來3h ${fmt(r3)}：有降雨訊號`};
+  if(r3<30) return {kind:"caution",text:`MSM 未來3h ${fmt(r3)}：降雨訊號較明顯`};
+  return {kind:"alert",text:`MSM 未來3h ${fmt(r3)}：短時雨量訊號偏高`};
+}
+
+function sumMsmForExactWindow(series,start,end){
+  if(!Array.isArray(series)||!start||!end) return {ok:false,reason:"資料不足"};
+  const startMs=start.getTime(),endMs=end.getTime();
+  const hours=(endMs-startMs)/3600000;
+  if(!Number.isInteger(hours)||hours<=0) return {ok:false,reason:"時間窗不是整點小時"};
+  // Open-Meteo hourly precipitation is the preceding-hour sum.
+  // To cover 08:00–14:00 use timestamps 09:00...14:00.
+  const selected=series.filter(x=>x.t>startMs && x.t<=endMs).sort((a,b)=>a.t-b.t);
+  if(selected.length!==hours) return {ok:false,reason:`需要 ${hours} 筆，只有 ${selected.length} 筆`};
+  for(let i=0;i<hours;i++){
+    const expected=startMs+(i+1)*3600000;
+    if(Math.abs(selected[i].t-expected)>60000) return {ok:false,reason:"MSM 小時資料不連續"};
+  }
+  return {ok:true,mm:selected.reduce((s,x)=>s+x.v,0),points:selected.length,start,end};
+}
+
+function comparisonLevel(msmMm,wrfMm){
+  const diff=Math.abs(msmMm-wrfMm);
+  const avg=(msmMm+wrfMm)/2;
+  if(avg<10){
+    if(diff<=3) return {level:"close",kind:"good",label:"兩模式看法接近",diff};
+    if(diff<=8) return {level:"mixed",kind:"caution",label:"兩模式有些差異",diff};
+    return {level:"large",kind:"alert",label:"兩模式分歧較大",diff};
+  }
+  const relative=diff/avg;
+  if(diff<=5 || relative<=0.30) return {level:"close",kind:"good",label:"兩模式看法接近",diff};
+  if(diff<=10 || relative<=0.60) return {level:"mixed",kind:"caution",label:"兩模式有明顯差異",diff};
+  return {level:"large",kind:"alert",label:"兩模式分歧很大",diff};
+}
+
+function renderPublicWeatherBrief(){
+  if(!$("briefNow")) return;
+  let nowKind="caution",nowText="觀測資料尚未完整";
+  if(Number.isFinite(latestGaugePast10)||Number.isFinite(latestGaugePast1h)||Number.isFinite(latestQpePast1h)){
+    const g10=Number.isFinite(latestGaugePast10)?latestGaugePast10:NaN;
+    const g1=Number.isFinite(latestGaugePast1h)?latestGaugePast1h:NaN;
+    const q1=Number.isFinite(latestQpePast1h)?latestQpePast1h:NaN;
+    if((!Number.isFinite(g10)||g10<0.1)&&(!Number.isFinite(g1)||g1<0.5)&&(!Number.isFinite(q1)||q1<0.5)){
+      nowKind="good"; nowText="測站 / QPE 目前沒有明顯降雨訊號";
+    }else if((Number.isFinite(g10)&&g10>=1)||(Number.isFinite(g1)&&g1>=5)||(Number.isFinite(q1)&&q1>=5)){
+      nowKind="alert"; nowText="附近目前已有較明顯降雨訊號";
+    }else{
+      nowKind="caution"; nowText="附近目前有零星或輕微降雨訊號";
+    }
+  }
+  $("briefNow").textContent=nowText; setBriefBox("briefNowBox",nowKind);
+  const next=msmSignalText(Number(latestMsmShortResult?.r3));
+  $("briefNext").textContent=next.text; setBriefBox("briefNextBox",next.kind);
+  if(latestAlignedComparison?.ok){
+    const c=latestAlignedComparison;
+    $("briefModels").textContent=`${c.label}｜${formatTaipeiRange(c.start,c.end)}：MSM ${c.msmMm.toFixed(1)} / WRF ${c.wrfMm.toFixed(1)} mm`;
+    setBriefBox("briefModelsBox",c.kind);
+  }else{
+    $("briefModels").textContent="尚無完整的 MSM / WRF 同時段比較";
+    setBriefBox("briefModelsBox","caution");
   }
 }
 
@@ -1306,38 +1441,51 @@ function setWrfCard(hour,item){
 
 function renderWrfMsmAlignment(){
   if(!$("wrfTimeRisk")) return;
+  latestAlignedComparison=null;
+  $("msmAligned").textContent="—";
+  $("msmAlignedLabel").textContent="與 WRF 同時段";
 
   if(!latestWrfCurrentBlock){
     $("wrfTimeRisk").innerHTML=
-      `<strong class="uncertain">WRF 目前沒有涵蓋現在的 6h 區段。</strong><br>`+
-      `請依卡片的實際台灣時間判讀；MSM「未來 6h」不可直接拿來和已結束或尚未開始的 WRF 區段比較。`;
+      `<strong class="uncertain">目前沒有正在進行中的 WRF 6h 區段。</strong><br>`+
+      `請依卡片的實際台灣時間看已結束 / 未來區段；現在與 0–3h 仍優先看 CWA 實測、QPE / QPEplus 雷達。`;
+    renderPublicWeatherBrief();
     return;
   }
 
   const {start,end,item}=latestWrfCurrentBlock;
-  const now=new Date();
-  const elapsedHours=(now-start)/3600000;
   const wrfMm=Number(item?.period_mm);
-  const nearAligned=elapsedHours>=0 && elapsedHours<=1;
+  $("msmAlignedLabel").textContent=`MSM ${formatTaipeiRange(start,end)}`;
+  const aligned=sumMsmForExactWindow(latestMsmSeries,start,end);
 
-  if(nearAligned && Number.isFinite(latestMsmFuture6) && Number.isFinite(wrfMm)){
-    const diff=Math.abs(wrfMm-latestMsmFuture6);
-    const large=diff>=10 || (Math.max(wrfMm,latestMsmFuture6)>=10 && diff>=5);
+  if(!aligned.ok || !Number.isFinite(wrfMm)){
     $("wrfTimeRisk").innerHTML=
-      `<strong class="${large?"warning":"uncertain"}">${large?"MSM / WRF 分歧較大":"MSM / WRF 時間窗接近，可交叉參考"}</strong><br>`+
-      `MSM 未來6h：${fmt(latestMsmFuture6)}｜WRF ${formatTaipeiRange(start,end)}：${fmt(wrfMm)}｜差 ${fmt(diff)}<br>`+
-      `${large?"短時請優先看 CWA 實測、QPE 與 QPEplus 雷達。":"兩者仍不是完全相同的預報系統，請搭配即時觀測。"}`;
+      `<strong class="warning">MSM 同時段資料目前不足，暫不比較。</strong><br>`+
+      `WRF ${formatTaipeiRange(start,end)} 整段累積：${Number.isFinite(wrfMm)?fmt(wrfMm):"—"}。<br>`+
+      `WRF 數字包含該 6 小時時段中已經過去的部分，不是「從現在起還會下多少」。`;
+    renderPublicWeatherBrief();
     return;
   }
 
+  const msmMm=aligned.mm;
+  $("msmAligned").textContent=fmt(msmMm);
+  const c=comparisonLevel(msmMm,wrfMm);
+  latestAlignedComparison={ok:true,...c,msmMm,wrfMm,start,end};
+  const detail=c.level==="large"
+    ? "不要把兩個模式取平均；這通常表示降雨位置、時機或強度仍有較大不確定性。短時請回到實測與雷達。"
+    : c.level==="mixed"
+      ? "兩模式對雨量強度仍有差異，趨勢可參考，但不要把單一格點數字當成一定會發生。"
+      : "兩模式對同一有效時段較接近，可提高對整體趨勢的信心；局部雷雨位置仍可能有偏差。";
   $("wrfTimeRisk").innerHTML=
-    `<strong class="warning">MSM 與 WRF 時間窗未對齊，不做直接數值比較。</strong><br>`+
-    `目前 WRF 固定區段：${formatTaipeiRange(start,end)}，整段雨量 ${Number.isFinite(wrfMm)?fmt(wrfMm):"—"}。<br>`+
-    `這不是「從現在開始的未來6h」；現在與 0–3h 判讀請優先看 CWA 實測、QPE / QPEplus 雷達。`;
+    `<strong class="${c.kind==="alert"?"warning":c.kind==="good"?"ok":"warning"}">${c.label}</strong><br>`+
+    `${formatTaipeiRange(start,end)} 同一時段：MSM ${fmt(msmMm)}｜WRF ${fmt(wrfMm)}｜相差 ${fmt(c.diff)}<br>`+
+    `${detail}<div class="model-compare-line">比較的是「相同有效時間窗」，不是保證兩個模式的起報時間、物理設定完全相同。</div>`;
+  renderPublicWeatherBrief();
 }
 
 function clearWrfPoint(message="WRF 3 km 資料不可用"){
   latestWrfCurrentBlock=null;
+  latestAlignedComparison=null;
   ["wrf06","wrf12","wrf18","wrfCum18"].forEach(id=>$(id).textContent="—");
   [["06",6],["12",12],["18",18]].forEach(([suffix,hour])=>{
     $(`wrf${suffix}Label`).textContent=`WRF +${hour-6}～${hour}h`;
@@ -1348,6 +1496,7 @@ function clearWrfPoint(message="WRF 3 km 資料不可用"){
   $("wrfTag").textContent="資料不可用";
   $("wrfTimeRisk").innerHTML=`<strong class="danger">${message}</strong>`;
   $("wrfStatus").textContent=message;
+  renderPublicWeatherBrief();
 }
 
 async function updateWrfPoint(){
@@ -1400,7 +1549,7 @@ async function updateWrfPoint(){
       `JSON 產生：${fmtDateTimeTaiwan(data.generated_at)}\n`+
       `使用格點：${gp.lat ?? "?"}, ${gp.lon ?? "?"}`+
       `${Number.isFinite(dist)?`｜距離 ${dist.toFixed(2)} km`:""}\n`+
-      `注意：WRF 每格是固定 6h 累積，不等於從瀏覽器現在時間開始的未來6h。`;
+      `注意：WRF 每格是固定 6h 整段累積；目前時段的數值包含已經過去的部分，不代表從現在起剩餘雨量。`;
   }catch(e){
     clearWrfPoint(
       `WRF 3 km 尚未有可用的仁武 JSON：${e instanceof Error?e.message:String(e)}\n`+

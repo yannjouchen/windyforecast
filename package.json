@@ -1,9 +1,9 @@
 {
   "name": "windyforecast-renwu",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "type": "module",
-  "description": "仁武防災雨量儀表板 - QPE freshness + WRF actual Taiwan time alignment + Railway",
+  "description": "仁武防災雨量儀表板 - 同時段 MSM/WRF 比較 + 民眾版氣象判讀",
   "main": "server.mjs",
   "scripts": {
     "dev": "node server.mjs",
