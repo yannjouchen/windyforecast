@@ -540,6 +540,7 @@ let latestMsmAreaSamples = [];
 let latestOpenMeteoGfsSeries = [];
 let latestCwaGfsDirect = null;
 let latestQpeArea = null;
+let latestQpeFreshness = "unknown";
 let latestWrfCurrentBlock = null;
 let latestAlignedComparison = null;
 let latestGaugePast10 = NaN;
@@ -1307,6 +1308,7 @@ async function updateCwa(){
     latestGaugePast10 = Number.isFinite(p10.value) ? p10.value : NaN;
     latestGaugePast1h = Number.isFinite(p1.value) ? p1.value : NaN;
     renderQpeGaugeComparison();
+    renderQpeSummary();
     renderPublicWeatherBrief();
 
     $("cwa10").textContent=p10.label;
@@ -1346,6 +1348,8 @@ async function updateCwa(){
   }catch(e){
     latestGaugePast10=NaN;
     latestGaugePast1h=NaN;
+    renderQpeGaugeComparison();
+    renderQpeSummary();
     renderPublicWeatherBrief();
     clearCwaDisplay("中央氣象署更新失敗");
     $("cwaStatus").textContent=
@@ -1430,9 +1434,36 @@ function renderQpeGaugeComparison(){
   }
 }
 
+function renderQpeSummary(){
+  // Only rebuild the normal fresh/warning panel. Expired/error panels have
+  // their own messages and must not be overwritten by a later station update.
+  if(
+    !Number.isFinite(latestQpePast1h) ||
+    !["fresh","warning"].includes(latestQpeFreshness)
+  ){
+    return;
+  }
+
+  const warning=latestQpeFreshness==="warning";
+  const cls=warning ? "warning" : "uncertain";
+  const title=warning
+    ? "QPE 已超過 30 分鐘，僅供參考"
+    : "過去1h QPE 已更新";
+
+  const gaugeText=Number.isFinite(latestGaugePast1h)
+    ? `${latestGaugePast1h.toFixed(1)} mm`
+    : "尚未取得";
+
+  $("qpeRisk").innerHTML=
+    `<strong class="${cls}">${title}</strong><br>`+
+    `QPE ${latestQpePast1h.toFixed(1)} mm｜附近測站 ${gaugeText}<br>`+
+    `QPE 是雷達＋雨量站整合估計，不等於測站實測，也不是未來預報。`;
+}
+
 function clearQpeDisplay(message="QPE 資料不可用"){
   latestQpePast1h=NaN;
   latestQpeArea=null;
+  latestQpeFreshness="unknown";
   $("qpe1h").textContent="—";
   $("qpeBadge").textContent="資料不可用";
   $("qpeRisk").innerHTML=`<strong class="danger">${message}</strong>`;
@@ -1468,6 +1499,7 @@ async function updateQpe(){
     if(freshness==="expired" || !usable){
       latestQpePast1h=NaN;
       latestQpeArea=null;
+      latestQpeFreshness="expired";
       renderPublicWeatherBrief();
       renderAreaRainfall();
       $("qpe1h").textContent="—";
@@ -1490,23 +1522,15 @@ async function updateQpe(){
 
     latestQpePast1h=rawQpe;
     latestQpeArea=data.area||null;
+    latestQpeFreshness=freshness==="warning" ? "warning" : "fresh";
     $("qpe1h").textContent=fmt(latestQpePast1h);
     renderQpeGaugeComparison();
+    renderQpeSummary();
     renderPublicWeatherBrief();
     renderAreaRainfall();
 
     const warning=freshness==="warning";
     $("qpeBadge").textContent=warning ? "QPE 資料偏舊" : "O-B0045-001";
-
-    const cls=warning ? "warning" : "uncertain";
-    const title=warning
-      ? "QPE 已超過 30 分鐘，僅供參考"
-      : "過去1h QPE 已更新";
-
-    $("qpeRisk").innerHTML=
-      `<strong class="${cls}">${title}</strong><br>`+
-      `QPE ${latestQpePast1h.toFixed(1)} mm｜附近測站 ${Number.isFinite(latestGaugePast1h)?latestGaugePast1h.toFixed(1)+" mm":"尚未取得"}<br>`+
-      `QPE 是雷達＋雨量站整合估計，不等於測站實測，也不是未來預報。`;
 
     $("qpeStatus").textContent=
       `資料時間（台灣）：${fmtDateTimeTaiwan(data.observation_time)}\n`+
@@ -1587,8 +1611,29 @@ function renderPublicWeatherBrief(){
   $("briefNext").textContent=next.text; setBriefBox("briefNextBox",next.kind);
   if(latestAlignedComparison?.ok){
     const c=latestAlignedComparison;
-    $("briefModels").textContent=`${c.label}｜${formatTaipeiRange(c.start,c.end)}：MSM ${c.msmMm.toFixed(1)} / WRF ${c.wrfMm.toFixed(1)} mm`;
-    setBriefBox("briefModelsBox",c.kind);
+    const areaCmp=getAreaModelComparison();
+
+    let text=
+      `${formatTaipeiRange(c.start,c.end)}｜單點 MSM ${c.msmMm.toFixed(1)} / WRF ${c.wrfMm.toFixed(1)} mm`;
+
+    let kind=c.kind;
+
+    if(areaCmp){
+      text+=
+        `｜10 km平均 MSM ${areaCmp.msmMean.toFixed(1)} / WRF ${areaCmp.wrfMean.toFixed(1)} mm`+
+        `｜${areaCmp.text}`;
+
+      if(areaCmp.kind==="alert"){
+        kind="alert";
+      }else if(areaCmp.kind==="caution" && kind!=="alert"){
+        kind="caution";
+      }
+    }else{
+      text+=`｜${c.label}；面積資料尚未完整`;
+    }
+
+    $("briefModels").textContent=text;
+    setBriefBox("briefModelsBox",kind);
   }else{
     $("briefModels").textContent="尚無完整的 MSM / WRF 同時段比較";
     setBriefBox("briefModelsBox","caution");
@@ -1724,6 +1769,72 @@ function msmAreaForExactWindow(start,end){
   return values.length ? summarizeSampleValues(values) : null;
 }
 
+function getAreaModelComparison(){
+  if(
+    !latestWrfCurrentBlock?.start ||
+    !latestWrfCurrentBlock?.end ||
+    !latestAlignedComparison?.ok
+  ){
+    return null;
+  }
+
+  const {start,end,item}=latestWrfCurrentBlock;
+  const msmArea=msmAreaForExactWindow(start,end);
+  const wrfArea=item?.area||null;
+  const msm10=areaRadius(msmArea,10);
+  const wrf10=areaRadius(wrfArea,10);
+
+  if(!msm10 || !wrf10){
+    return null;
+  }
+
+  const msmMean=Number(msm10.mean_mm);
+  const wrfMean=Number(wrf10.mean_mm);
+  const msmCov20=Number(msm10.coverage_pct?.ge_20);
+  const wrfCov20=Number(wrf10.coverage_pct?.ge_20);
+
+  if(
+    ![msmMean,wrfMean,msmCov20,wrfCov20].every(Number.isFinite)
+  ){
+    return null;
+  }
+
+  const centerDiff=Math.abs(
+    Number(latestAlignedComparison.msmMm) -
+    Number(latestAlignedComparison.wrfMm)
+  );
+  const meanDiff=Math.abs(msmMean-wrfMean);
+  const covDiff=Math.abs(msmCov20-wrfCov20);
+
+  if(centerDiff>=10 && meanDiff<=5 && covDiff<=20){
+    return {
+      kind:"caution",
+      level:"position_shift",
+      msmMean,wrfMean,msmCov20,wrfCov20,
+      text:
+        `單點差較大，但10 km面平均接近，較像雨胞位置偏移`
+    };
+  }
+
+  if(meanDiff>=10 || covDiff>=30){
+    return {
+      kind:"alert",
+      level:"area_divergence",
+      msmMean,wrfMean,msmCov20,wrfCov20,
+      text:
+        `10 km面平均／強雨覆蓋率也分歧，整體雨區不確定性較高`
+    };
+  }
+
+  return {
+    kind:"good",
+    level:"area_close",
+    msmMean,wrfMean,msmCov20,wrfCov20,
+    text:
+      `10 km面積訊號接近`
+  };
+}
+
 function renderAreaRainfall(){
   if(!$("areaRainSummary")) return;
 
@@ -1771,20 +1882,14 @@ function renderAreaRainfall(){
       Number(latestAlignedComparison.msmMm) -
       Number(latestAlignedComparison.wrfMm)
     );
-    const meanDiff=Math.abs(
-      Number(msm10.mean_mm) - Number(wrf10.mean_mm)
-    );
-    const covDiff=Math.abs(
-      Number(msm10.coverage_pct?.ge_20) -
-      Number(wrf10.coverage_pct?.ge_20)
-    );
+    const areaCmp=getAreaModelComparison();
 
-    if(centerDiff>=10 && meanDiff<=5 && covDiff<=20){
+    if(areaCmp?.level==="position_shift"){
       lines.push(
         `<strong class="warning">單點差很大，但 10 km 面平均較接近。</strong> `+
         `這比較像兩模式把雨胞中心放在不同位置；不要只看仁武那一格。`
       );
-    }else if(meanDiff>=10 || covDiff>=30){
+    }else if(areaCmp?.level==="area_divergence"){
       lines.push(
         `<strong class="warning">連 10 km 面平均 / 覆蓋率也差很多。</strong> `+
         `這代表不只是雨胞偏一格，而是兩模式對整體雨區情境都有明顯分歧。`

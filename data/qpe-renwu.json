@@ -1,11 +1,12 @@
 {
   "status": "ok",
-  "generated_at": "2026-09-04T04:19:21.571Z",
+  "schema_version": 2,
+  "generated_at": "2026-09-04T06:18:00.215Z",
   "dataset_id": "O-B0045-001",
   "source_format": "JSON",
-  "observation_time": "2026-09-04T04:00:00.000Z",
+  "observation_time": "2026-09-04T06:00:00.000Z",
   "observation_time_source": "cwaopendata.dataset.datasetInfo.parameterSet.DateTime",
-  "age_minutes": 19.4,
+  "age_minutes": 18,
   "freshness": "fresh",
   "usable_for_judgement": true,
   "freshness_limits_minutes": {
@@ -29,6 +30,47 @@
   "past_1h_qpe_mm": 0,
   "raw_value": 0,
   "units": "mm",
+  "area_definition": {
+    "radii_km": [
+      5,
+      10
+    ],
+    "thresholds_mm": [
+      5,
+      10,
+      20,
+      40
+    ],
+    "method": "all QPE grid-cell centers within 5/10 km of target"
+  },
+  "area": {
+    "radius_5km": {
+      "radius_km": 5,
+      "valid_cells": 46,
+      "mean_mm": 0,
+      "max_mm": 0,
+      "p90_mm": 0,
+      "coverage_pct": {
+        "ge_5": 0,
+        "ge_10": 0,
+        "ge_20": 0,
+        "ge_40": 0
+      }
+    },
+    "radius_10km": {
+      "radius_km": 10,
+      "valid_cells": 178,
+      "mean_mm": 0,
+      "max_mm": 0,
+      "p90_mm": 0,
+      "coverage_pct": {
+        "ge_5": 0,
+        "ge_10": 0,
+        "ge_20": 0,
+        "ge_40": 0
+      }
+    }
+  },
   "grid": {
     "origin_lon": 118,
     "origin_lat": 20,
@@ -42,6 +84,6 @@
     "data_direction": "west_to_east_then_south_to_north"
   },
   "note": "QPE is radar + gauge integrated rainfall estimation for the past 1 hour. It is an estimate, not a station measurement and not a future forecast.",
-  "fetched_at": "2026-09-04T04:19:21.572Z",
+  "fetched_at": "2026-09-04T06:18:00.215Z",
   "source_url": "CWA fileapi O-B0045-001 (JSON)"
 }
