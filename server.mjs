@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createWrfUpdater } from "./lib/wrf-updater.mjs";
 import { createQpeUpdater } from "./lib/qpe-updater.mjs";
 import { createCwaGfsUpdater } from "./lib/cwa-gfs-updater.mjs";
+import { createWaterLevelUpdater } from "./lib/waterlevel-updater.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,6 +51,39 @@ const CWA_GFS_REFRESH_MINUTES = Math.max(
   Number(process.env.CWA_GFS_REFRESH_MINUTES || 360)
 );
 
+const WATERLEVEL_ENABLED = !/^(0|false|no|off)$/i.test(
+  String(process.env.WATERLEVEL_ENABLED || "true").trim()
+);
+const WATERLEVEL_REFRESH_MINUTES = Math.max(
+  1,
+  Number(process.env.WATERLEVEL_REFRESH_MINUTES || 1)
+);
+const WATERLEVEL_ENDPOINT = String(
+  process.env.WATERLEVEL_ENDPOINT ||
+  "https://web.fpcitc.com.tw/PIWebAPI/streams/Recorded"
+).trim();
+const WATERLEVEL_SERVER = String(
+  process.env.WATERLEVEL_SERVER || "JWRTPMS"
+).trim();
+const WATERLEVEL_TAG = String(
+  process.env.WATERLEVEL_TAG || "JW_waterlevelmeter"
+).trim();
+const WATERLEVEL_NAME = String(
+  process.env.WATERLEVEL_NAME || "台塑仁四橋"
+).trim();
+const WATERLEVEL_DISTRICT = String(
+  process.env.WATERLEVEL_DISTRICT || "仁武"
+).trim();
+const WATERLEVEL_BASIN = String(
+  process.env.WATERLEVEL_BASIN || "後勁溪"
+).trim();
+const WATERLEVEL_UNIT = String(
+  process.env.WATERLEVEL_UNIT || "m"
+).trim();
+const WATERLEVEL_LEVEL3 = Number(process.env.WATERLEVEL_LEVEL3 || 11);
+const WATERLEVEL_LEVEL2 = Number(process.env.WATERLEVEL_LEVEL2 || 12);
+const WATERLEVEL_LEVEL1 = Number(process.env.WATERLEVEL_LEVEL1 || 13);
+
 await fs.mkdir(DATA_DIR, { recursive: true });
 
 const wrfUpdater = createWrfUpdater({
@@ -79,6 +113,22 @@ const cwaGfsUpdater = createCwaGfsUpdater({
   dataDir: DATA_DIR,
   refreshMinutes: CWA_GFS_REFRESH_MINUTES,
   pythonBin: process.env.PYTHON_BIN || "python3"
+});
+
+const waterLevelUpdater = createWaterLevelUpdater({
+  enabled: WATERLEVEL_ENABLED,
+  endpoint: WATERLEVEL_ENDPOINT,
+  server: WATERLEVEL_SERVER,
+  tag: WATERLEVEL_TAG,
+  stationName: WATERLEVEL_NAME,
+  district: WATERLEVEL_DISTRICT,
+  basin: WATERLEVEL_BASIN,
+  unit: WATERLEVEL_UNIT,
+  warningLevel3: WATERLEVEL_LEVEL3,
+  warningLevel2: WATERLEVEL_LEVEL2,
+  warningLevel1: WATERLEVEL_LEVEL1,
+  dataDir: DATA_DIR,
+  refreshMinutes: WATERLEVEL_REFRESH_MINUTES
 });
 
 // Small in-memory CWA proxy cache so multiple cards/users do not spend
@@ -116,9 +166,11 @@ app.get("/api/health", async (_req, res) => {
   const wrf = wrfUpdater.getStatus();
   const qpe = qpeUpdater.getStatus();
   const cwaGfs = cwaGfsUpdater.getStatus();
+  const waterLevel = waterLevelUpdater.getStatus();
   let wrfFile = null;
   let qpeFile = null;
   let cwaGfsFile = null;
+  let waterLevelFile = null;
 
   try {
     const raw = await fs.readFile(path.join(DATA_DIR, "wrf-renwu.json"), "utf8");
@@ -165,6 +217,25 @@ app.get("/api/health", async (_req, res) => {
     // Experimental CWA GFS file may not exist while disabled.
   }
 
+  try {
+    const raw = await fs.readFile(
+      path.join(DATA_DIR, "waterlevel-renwu.json"),
+      "utf8"
+    );
+    const data = JSON.parse(raw);
+    waterLevelFile = {
+      status: data?.status || null,
+      latest_timestamp: data?.latest_timestamp || null,
+      current_value: data?.current?.value ?? null,
+      unit: data?.current?.unit ?? null,
+      series_points: Array.isArray(data?.series_5min)
+        ? data.series_5min.length
+        : 0
+    };
+  } catch {
+    // Water-level file may not exist before the first successful update.
+  }
+
   res.json({
     ok: true,
     service: "windyforecast-renwu",
@@ -177,7 +248,9 @@ app.get("/api/health", async (_req, res) => {
     qpe_file: qpeFile,
     qpe_updater: qpe,
     cwa_gfs_file: cwaGfsFile,
-    cwa_gfs_updater: cwaGfs
+    cwa_gfs_updater: cwaGfs,
+    waterlevel_file: waterLevelFile,
+    waterlevel_updater: waterLevel
   });
 });
 
@@ -278,6 +351,110 @@ app.get("/api/cwa", async (req, res) => {
           : String(error);
     jsonError(res, 502, message);
   }
+});
+
+app.get("/api/waterlevel", async (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    const raw = await fs.readFile(
+      path.join(DATA_DIR, "waterlevel-renwu.json"),
+      "utf8"
+    );
+    return res.json(JSON.parse(raw));
+  } catch {
+    return res.json({
+      status: "pending",
+      enabled: WATERLEVEL_ENABLED,
+      message: WATERLEVEL_ENABLED
+        ? "尚未取得水位資料；背景更新器會自動向 PI Recorded API 取得過去 1 天資料。"
+        : "水位整合目前未啟用。",
+      updater: waterLevelUpdater.getStatus()
+    });
+  }
+});
+
+app.get("/api/waterlevel/status", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json(waterLevelUpdater.getStatus());
+});
+
+app.post("/api/waterlevel/refresh", async (req, res) => {
+  const configured = String(process.env.ADMIN_TOKEN || "").trim();
+  const supplied = String(req.get("x-admin-token") || "").trim();
+  if (!configured || supplied !== configured) {
+    return jsonError(res, 403, "手動水位更新端點未授權");
+  }
+  const result = await waterLevelUpdater.checkAndUpdate({
+    reason: "manual-api"
+  });
+  res.json(result);
+});
+
+app.get("/api/hydro", async (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  let waterlevel = null;
+  let rainfall = null;
+  let qpeCurrent = null;
+
+  try {
+    waterlevel = JSON.parse(
+      await fs.readFile(path.join(DATA_DIR, "waterlevel-renwu.json"), "utf8")
+    );
+  } catch {}
+
+  try {
+    rainfall = JSON.parse(
+      await fs.readFile(path.join(DATA_DIR, "qpe-history-renwu.json"), "utf8")
+    );
+  } catch {}
+
+  try {
+    qpeCurrent = JSON.parse(
+      await fs.readFile(path.join(DATA_DIR, "qpe-renwu.json"), "utf8")
+    );
+  } catch {}
+
+  if (!rainfall && qpeCurrent?.observation_time) {
+    rainfall = {
+      status: "ok",
+      schema_version: 1,
+      updated_at: new Date().toISOString(),
+      retention_hours: 72,
+      meaning:
+        "Temporary one-point fallback until qpe-history-renwu.json is populated.",
+      series: [
+        {
+          time: qpeCurrent.observation_time,
+          point_1h_mm: qpeCurrent.past_1h_qpe_mm ?? null,
+          radius_5km_mean_1h_mm:
+            qpeCurrent?.area?.radius_5km?.mean_mm ?? null,
+          radius_10km_mean_1h_mm:
+            qpeCurrent?.area?.radius_10km?.mean_mm ?? null,
+          radius_10km_max_1h_mm:
+            qpeCurrent?.area?.radius_10km?.max_mm ?? null,
+          radius_10km_ge20_pct:
+            qpeCurrent?.area?.radius_10km?.coverage_pct?.ge_20 ?? null
+        }
+      ]
+    };
+  }
+
+  res.json({
+    status: waterlevel || rainfall ? "ok" : "pending",
+    generated_at: new Date().toISOString(),
+    waterlevel,
+    rainfall,
+    qpe_current: qpeCurrent
+      ? {
+          observation_time: qpeCurrent.observation_time || null,
+          point_1h_mm: qpeCurrent.past_1h_qpe_mm ?? null,
+          radius_10km_mean_1h_mm:
+            qpeCurrent?.area?.radius_10km?.mean_mm ?? null
+        }
+      : null,
+    note:
+      "Rainfall series contains rolling past-1h QPE snapshots. Adjacent values overlap and must not be summed."
+  });
 });
 
 app.get("/api/qpe", async (_req, res) => {
@@ -430,9 +607,15 @@ app.listen(PORT, "0.0.0.0", () => {
       ? `[server] CWA GFS direct background check every ${CWA_GFS_REFRESH_MINUTES} minutes`
       : "[server] CWA GFS direct experiment disabled (CWA_GFS_ENABLED=false)"
   );
+  console.log(
+    WATERLEVEL_ENABLED
+      ? `[server] water level ${WATERLEVEL_SERVER}/${WATERLEVEL_TAG} every ${WATERLEVEL_REFRESH_MINUTES} minutes`
+      : "[server] water level integration disabled"
+  );
 
   // Do not block server startup on background data collection.
   wrfUpdater.start();
   qpeUpdater.start();
   cwaGfsUpdater.start();
+  waterLevelUpdater.start();
 });

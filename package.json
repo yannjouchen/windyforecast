@@ -1,19 +1,20 @@
 {
   "name": "windyforecast-renwu",
-  "version": "1.8.1",
+  "version": "1.9.1",
   "private": true,
   "type": "module",
-  "description": "仁武防災雨量儀表板 - v9.1 固定仁武位置，移除座標/手動模型更新區",
+  "description": "仁武防災雨量儀表板 - v10.1 台塑仁四橋水位警戒 + 每分鐘更新",
   "main": "server.mjs",
   "scripts": {
     "dev": "node server.mjs",
     "start": "node server.mjs",
     "wrf:check": "node scripts/check-wrf.mjs",
-    "check": "node --check server.mjs && node --check lib/wrf-updater.mjs && node --check lib/qpe-updater.mjs && node --check lib/cwa-gfs-updater.mjs && node --check scripts/check-wrf.mjs && node --check scripts/check-qpe.mjs && node --check scripts/check-cwa-gfs.mjs",
+    "check": "node --check server.mjs && node --check lib/wrf-updater.mjs && node --check lib/qpe-updater.mjs && node --check lib/cwa-gfs-updater.mjs && node --check lib/waterlevel-updater.mjs && node --check scripts/check-wrf.mjs && node --check scripts/check-qpe.mjs && node --check scripts/check-cwa-gfs.mjs && node --check scripts/check-waterlevel.mjs",
     "dev:watch": "node --watch server.mjs",
     "qpe:check": "node scripts/check-qpe.mjs",
     "gfs:cwa:probe": "node scripts/check-cwa-gfs.mjs --probe",
-    "gfs:cwa:check": "node scripts/check-cwa-gfs.mjs"
+    "gfs:cwa:check": "node scripts/check-cwa-gfs.mjs",
+    "waterlevel:check": "node scripts/check-waterlevel.mjs"
   },
   "engines": {
     "node": ">=20"

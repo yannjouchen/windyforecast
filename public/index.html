@@ -71,7 +71,7 @@ button.secondary{background:#263552;color:var(--text);border:1px solid var(--lin
 .public-main-message.good{border-color:#315b4a}
 .public-main-message.caution{border-color:#7a6330}
 .public-main-message.alert{border-color:#7d4040}
-.public-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+.public-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:12px}
 .public-card{padding:13px;border-radius:14px;background:#172138;border:1px solid #2a3b60}
 .public-card .pc-label{font-size:12px;color:var(--muted)}
 .public-card .pc-main{margin-top:5px;font-size:17px;font-weight:800;line-height:1.4}
@@ -80,6 +80,27 @@ button.secondary{background:#263552;color:var(--text);border:1px solid var(--lin
 .public-card.caution{border-color:#7a6330}
 .public-card.alert{border-color:#7d4040}
 .public-attention{margin-top:12px;padding:12px;border-radius:13px;background:#11192b;line-height:1.6}
+.hydro-card{margin:0 0 18px}
+.hydro-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.hydro-head h2{margin:0}
+.hydro-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:14px}
+.hydro-kpi{padding:12px;border-radius:13px;background:#11192b;border:1px solid var(--line)}
+.hydro-warning-scale{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.hydro-warning-chip{padding:7px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px}
+.hydro-warning-chip.l3{border-color:#8b7b2f}
+.hydro-warning-chip.l2{border-color:#9b6428}
+.hydro-warning-chip.l1{border-color:#9c3e3e}
+.hydro-kpi.good{border-color:#315b4a}
+.hydro-kpi.caution{border-color:#7a6330}
+.hydro-kpi.alert{border-color:#7d4040}
+.hydro-kpi .hk-label{font-size:12px;color:var(--muted)}
+.hydro-kpi .hk-value{margin-top:5px;font-size:20px;font-weight:800}
+.hydro-chart-wrap{margin-top:14px;padding:10px;border-radius:14px;background:#0d1525;border:1px solid var(--line);overflow:hidden}
+#hydroChart{display:block;width:100%;height:320px}
+.hydro-range{display:flex;gap:7px;flex-wrap:wrap}
+.hydro-range button{padding:7px 10px;font-size:12px}
+.hydro-range button.active{outline:2px solid #8fb1ff}
+.hydro-note{margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6}
 details.tech-details{margin-top:16px;border:1px solid var(--line);border-radius:16px;background:#0f1728;overflow:hidden}
 details.tech-details>summary{cursor:pointer;padding:14px 16px;font-weight:800;list-style:none}
 details.tech-details>summary::-webkit-details-marker{display:none}
@@ -118,7 +139,7 @@ footer{margin-top:22px;color:var(--muted);font-size:13px;line-height:1.6}
 a{color:#9bbcff}
 @media(max-width:760px){
  h1{font-size:28px}.grid2,.grid4,.probgrid,.compare,.shortterm,.timeline{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}.controls button{grid-column:1/-1}
- .kpis,.kpis.obs{grid-template-columns:repeat(2,1fr)} .brief-grid,.area-grid,.public-cards{grid-template-columns:1fr} .public-home-head{display:block} .public-home .updated{margin-top:6px;display:block} .keygrid{grid-template-columns:1fr}
+ .kpis,.kpis.obs{grid-template-columns:repeat(2,1fr)} .brief-grid,.area-grid,.public-cards,.hydro-kpis{grid-template-columns:1fr} .public-home-head{display:block} .public-home .updated{margin-top:6px;display:block} .keygrid{grid-template-columns:1fr}
  table{font-size:12px}
 }
 </style>
@@ -171,12 +192,62 @@ a{color:#9bbcff}
         <div class="pc-main" id="publicFloodMain">資料整理中</div>
         <div class="pc-sub" id="publicFloodSub">目前以雨量與面積覆蓋判讀，不等於正式淹水預報。</div>
       </div>
+
+      <div class="public-card" id="publicWaterCard">
+        <div class="pc-label">台塑仁四橋水位</div>
+        <div class="pc-main" id="publicWaterMain">等待水位資料</div>
+        <div class="pc-sub" id="publicWaterSub">三級 11 m｜二級 12 m｜一級 13 m。</div>
+      </div>
     </div>
 
     <div class="public-attention" id="publicAttention">
       注意事項：短時天氣仍可能快速變化；若雷達回波快速增強，應優先參考中央氣象署即時資訊。
     </div>
   </section>
+
+  <section class="card hydro-card" id="hydro">
+    <div class="hydro-head">
+      <div>
+        <div class="section-label">即時水文觀測</div>
+        <h2>台塑仁四橋｜水位＋降雨聯合趨勢</h2>
+      </div>
+      <div class="hydro-range" aria-label="趨勢時間範圍">
+        <button type="button" class="secondary" data-hydro-hours="6">6h</button>
+        <button type="button" class="secondary" data-hydro-hours="12">12h</button>
+        <button type="button" class="secondary active" data-hydro-hours="24">24h</button>
+      </div>
+    </div>
+
+    <div class="muted" style="margin-top:6px">
+      仁武／後勁溪。把台塑仁四橋水位與仁武 QPE 放在同一時間軸，觀察「雨勢增強後，水位是否跟著上升」。
+    </div>
+
+    <div class="hydro-kpis">
+      <div class="hydro-kpi" id="hydroWarningCard"><div class="hk-label">水位警戒</div><div class="hk-value" id="hydroWarning">—</div></div>
+      <div class="hydro-kpi"><div class="hk-label">目前水位</div><div class="hk-value" id="hydroLevel">—</div></div>
+      <div class="hydro-kpi"><div class="hk-label">30 分鐘變化</div><div class="hk-value" id="hydro30m">—</div></div>
+      <div class="hydro-kpi"><div class="hk-label">1 小時變化</div><div class="hk-value" id="hydro1h">—</div></div>
+      <div class="hydro-kpi"><div class="hk-label">QPE 過去 1h</div><div class="hk-value" id="hydroRain">—</div></div>
+    </div>
+
+    <div class="hydro-warning-scale" aria-label="水位警戒值">
+      <span class="hydro-warning-chip l3">三級警戒 11 m</span>
+      <span class="hydro-warning-chip l2">二級警戒 12 m</span>
+      <span class="hydro-warning-chip l1">一級警戒 13 m</span>
+    </div>
+
+    <div class="hydro-chart-wrap">
+      <canvas id="hydroChart" role="img" aria-label="台塑仁四橋水位與QPE降雨趨勢圖"></canvas>
+    </div>
+    <div class="hydro-note" id="hydroNote">
+      水位資料載入中。QPE 圖值是每個時間點「往前 1 小時」的滾動估計，相鄰柱狀值互相重疊，不可相加。
+    </div>
+    <details class="tech-details">
+      <summary>技術資料：水位來源 / 單位 / 更新狀態</summary>
+      <div class="tech-body"><div id="hydroStatus" class="status">等待 /api/hydro</div></div>
+    </details>
+  </section>
+
   <section class="card">
     <h2>防災判讀順序</h2>
     <div class="muted">氣象判讀通常不是先選「最準模型」，而是先看觀測，再依預報時效選工具；模式互相比較時要先對齊有效時間。</div>
@@ -622,7 +693,7 @@ a{color:#9bbcff}
     中央氣象署實測：O-A0002-001（優先仁武 C0V680；無即時回傳時自動改用仁武區 CAP040 或最近有效站）。確定性模式：Open-Meteo MSM(日本，JMA MSM 優先)、ECMWF(歐洲)、GFS(美國)、ICON(德國)。CWA WRF 3 km 由 Node 背景更新器偵測新 InitialTime，再呼叫 Python 下載官方 GRIB2、計算仁武中心點與 5/10 km 面積統計後寫入後端資料檔；網頁透過 /api/wrf 讀取。集合模式：GEFS 與 ICON-EPS。實驗來源：CWA M-A0060 GFS 0.25° 原始 GRIB2（不取代既有 Open-Meteo GFS，先做同時段驗證）。
     實測值與預報值的時間意義不同，因此本頁不會直接把「過去 24h 實測」與「未來 24h 預報」相加後當作官方 24h 門檻。
     一般使用者先看首頁結論；詳細模型、面積雨量、集合機率與官方門檻保留在下方。中央氣象署授權碼只放在 Node 後端環境變數，不會送到瀏覽器。本頁不取代中央氣象署正式警特報。
-  <div class="smallnote" style="margin-top:8px">後端狀態：<a href="/api/health" target="_blank" rel="noopener">/api/health</a>｜<a href="/api/qpe/status" target="_blank" rel="noopener">/api/qpe/status</a>｜<a href="/api/wrf/status" target="_blank" rel="noopener">/api/wrf/status</a></div>
+  <div class="smallnote" style="margin-top:8px">後端狀態：<a href="/api/health" target="_blank" rel="noopener">/api/health</a>｜<a href="/api/qpe/status" target="_blank" rel="noopener">/api/qpe/status</a>｜<a href="/api/wrf/status" target="_blank" rel="noopener">/api/wrf/status</a>｜<a href="/api/waterlevel/status" target="_blank" rel="noopener">/api/waterlevel/status</a>｜<a href="/api/hydro" target="_blank" rel="noopener">/api/hydro</a></div>
 </footer>
 </div>
 
@@ -645,6 +716,8 @@ let latestWrfCurrentBlock = null;
 let latestAlignedComparison = null;
 let latestGaugePast10 = NaN;
 let latestPublicHomeUpdatedAt = null;
+let latestHydro = null;
+let hydroHours = 24;
 
 const rollingMax=(arr,n)=>{
   if(!arr.length) return 0;
@@ -1630,6 +1703,213 @@ async function updateQpe(){
   }
 }
 
+// ---------- Water level + rainfall joint trend ----------
+function hydroWarningState(){
+  const wl=latestHydro?.waterlevel;
+  const current=Number(wl?.current?.value);
+  const levels=wl?.source?.warning_levels||{};
+  const l3=Number(levels.level3);
+  const l2=Number(levels.level2);
+  const l1=Number(levels.level1);
+
+  if(![current,l3,l2,l1].every(Number.isFinite)){
+    return {code:"unknown",label:"警戒資料不足",kind:"caution",distance:null,next:null};
+  }
+  if(current>=l1) return {code:"level1",label:"一級警戒",kind:"alert",distance:null,next:null};
+  if(current>=l2) return {code:"level2",label:"二級警戒",kind:"alert",distance:l1-current,next:l1};
+  if(current>=l3) return {code:"level3",label:"三級警戒",kind:"caution",distance:l2-current,next:l2};
+  return {code:"normal",label:"低於三級警戒",kind:"good",distance:l3-current,next:l3};
+}
+
+function hydroWarningText(){
+  const w=hydroWarningState();
+  if(w.code==="normal" && Number.isFinite(w.distance)){
+    return `${w.label} ${w.distance.toFixed(2)} m`;
+  }
+  if((w.code==="level3"||w.code==="level2") && Number.isFinite(w.distance)){
+    return `${w.label}｜距下一級 ${w.distance.toFixed(2)} m`;
+  }
+  return w.label;
+}
+
+function hydroUnitLabel(){
+  const unit=latestHydro?.waterlevel?.source?.value_unit;
+  return unit ? unit : "原始單位";
+}
+
+function hydroSigned(value){
+  const n=Number(value);
+  if(!Number.isFinite(n)) return "—";
+  const sign=n>0?"+":"";
+  return `${sign}${n.toFixed(2)} ${hydroUnitLabel()}`;
+}
+
+function hydroTrendText(){
+  const c=latestHydro?.waterlevel?.change;
+  const d=Number(c?.hour_1);
+  if(!Number.isFinite(d)) return "趨勢資料不足";
+  if(d>0) return "↑ 過去 1h 水位上升";
+  if(d<0) return "↓ 過去 1h 水位下降";
+  return "→ 過去 1h 水位持平";
+}
+
+function hydroFilteredData(){
+  const cutoff=Date.now()-hydroHours*60*60*1000;
+  const water=(latestHydro?.waterlevel?.series_5min||[])
+    .map(x=>({t:Date.parse(x.time),v:Number(x.value)}))
+    .filter(x=>Number.isFinite(x.t)&&Number.isFinite(x.v)&&x.t>=cutoff);
+  const rain=(latestHydro?.rainfall?.series||[])
+    .map(x=>({t:Date.parse(x.time),v:Number(x.radius_10km_mean_1h_mm)}))
+    .filter(x=>Number.isFinite(x.t)&&Number.isFinite(x.v)&&x.t>=cutoff);
+  return {water,rain,cutoff,end:Date.now()};
+}
+
+function renderHydroChart(){
+  const canvas=$("hydroChart");
+  if(!canvas) return;
+  const ctx=canvas.getContext("2d");
+  const rect=canvas.getBoundingClientRect();
+  const dpr=Math.max(1,window.devicePixelRatio||1);
+  const width=Math.max(320,Math.floor(rect.width||900));
+  const height=320;
+  canvas.width=Math.floor(width*dpr);
+  canvas.height=Math.floor(height*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,width,height);
+
+  const {water,rain,cutoff,end}=hydroFilteredData();
+  const pad={l:58,r:54,t:30,b:42};
+  const plotW=width-pad.l-pad.r;
+  const plotH=height-pad.t-pad.b;
+
+  ctx.font="12px system-ui,sans-serif";
+  ctx.fillStyle="#9aa8c7";
+  ctx.strokeStyle="#263451";
+  ctx.lineWidth=1;
+
+  if(!water.length&&!rain.length){
+    ctx.fillText("等待水位 / QPE 歷史資料",pad.l,pad.t+20);
+    return;
+  }
+
+  const waterVals=water.map(x=>x.v);
+  let wMin=waterVals.length?Math.min(...waterVals):0;
+  let wMax=waterVals.length?Math.max(...waterVals):1;
+  if(wMin===wMax){
+    const p=Math.max(Math.abs(wMin)*0.01,0.05);
+    wMin-=p; wMax+=p;
+  }else{
+    const p=(wMax-wMin)*0.12;
+    wMin-=p; wMax+=p;
+  }
+  const rainMax=Math.max(1,...rain.map(x=>x.v))*1.15;
+  const x=t=>pad.l+((t-cutoff)/(end-cutoff))*plotW;
+  const yw=v=>pad.t+(wMax-v)/(wMax-wMin)*plotH;
+  const yr=v=>pad.t+(rainMax-v)/rainMax*plotH;
+
+  // grid + labels
+  for(let i=0;i<=4;i++){
+    const y=pad.t+(plotH*i/4);
+    ctx.strokeStyle="#263451";
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(width-pad.r,y); ctx.stroke();
+    const wv=wMax-(wMax-wMin)*i/4;
+    const rv=rainMax*(1-i/4);
+    ctx.fillStyle="#9aa8c7";
+    ctx.textAlign="right";
+    ctx.fillText(wv.toFixed(2),pad.l-7,y+4);
+    ctx.textAlign="left";
+    ctx.fillText(`${rv.toFixed(1)}`,width-pad.r+7,y+4);
+  }
+
+  // time labels
+  ctx.textAlign="center";
+  for(let i=0;i<=4;i++){
+    const t=cutoff+(end-cutoff)*i/4;
+    const d=new Date(t);
+    const label=d.toLocaleTimeString("zh-TW",{hour12:false,hour:"2-digit",minute:"2-digit"});
+    ctx.fillStyle="#9aa8c7";
+    ctx.fillText(label,x(t),height-16);
+  }
+
+  // QPE rolling 1h bars (right axis)
+  const barW=Math.max(2,plotW/Math.max(48,hydroHours*6)*0.75);
+  ctx.fillStyle="rgba(132,168,255,0.38)";
+  for(const p of rain){
+    const xx=x(p.t);
+    const yy=yr(p.v);
+    ctx.fillRect(xx-barW/2,yy,barW,pad.t+plotH-yy);
+  }
+
+  // water line (left axis)
+  if(water.length){
+    ctx.strokeStyle="#f4d27a";
+    ctx.lineWidth=2.2;
+    ctx.beginPath();
+    water.forEach((p,i)=>{
+      const xx=x(p.t), yy=yw(p.v);
+      if(i===0) ctx.moveTo(xx,yy); else ctx.lineTo(xx,yy);
+    });
+    ctx.stroke();
+  }
+
+  // axis titles / legend
+  ctx.textAlign="left";
+  ctx.fillStyle="#f4d27a";
+  ctx.fillText(`水位（${hydroUnitLabel()}）`,pad.l,pad.t-12);
+  ctx.fillStyle="#9fb8ff";
+  ctx.textAlign="right";
+  ctx.fillText("QPE 10km平均｜過去1h (mm)",width-pad.r,pad.t-12);
+}
+
+function renderHydro(){
+  const wl=latestHydro?.waterlevel;
+  const current=Number(wl?.current?.value);
+  const unit=hydroUnitLabel();
+  const warning=hydroWarningState();
+  $("hydroLevel").textContent=Number.isFinite(current)?`${current.toFixed(2)} ${unit}`:"—";
+  $("hydroWarning").textContent=hydroWarningText();
+  $("hydroWarningCard").classList.remove("good","caution","alert");
+  $("hydroWarningCard").classList.add(warning.kind);
+  $("hydro30m").textContent=hydroSigned(wl?.change?.minutes_30);
+  $("hydro1h").textContent=hydroSigned(wl?.change?.hour_1);
+
+  const qpeNow=Number(latestHydro?.qpe_current?.radius_10km_mean_1h_mm);
+  $("hydroRain").textContent=Number.isFinite(qpeNow)?`${qpeNow.toFixed(1)} mm` : "—";
+
+  $("hydroNote").textContent=
+    `${hydroTrendText()}。${hydroWarningText()}。`+
+    " 採你提供的台塑仁四橋警戒值：三級 11 m、二級 12 m、一級 13 m。"+
+    " QPE 圖值是每個時間點往前1小時的滾動估計，相鄰值互相重疊，不可相加。";
+
+  const src=wl?.source||{};
+  $("hydroStatus").textContent=
+    `來源：${src.server||"?"} / ${src.tag||"?"}\n`+
+    `位置：${src.district||"仁武"}｜流域：${src.basin||"後勁溪"}｜水位站：${src.station_name||"台塑仁四橋"}\n`+
+    `最新水位時間：${wl?.latest_timestamp?fmtDateTimeTaiwan(wl.latest_timestamp):"?"}\n`+
+    `目前值：${Number.isFinite(current)?current.toFixed(4):"?"} ${src.value_unit||"m"}｜${hydroWarningText()}\n`+
+    `警戒值：三級 ${src.warning_levels?.level3??11} m｜二級 ${src.warning_levels?.level2??12} m｜一級 ${src.warning_levels?.level1??13} m\n`+
+    `水位抓取：首次 *-1d；之後每分鐘 *-1m｜原始樣本：${wl?.raw_sample_count??0}\n`+
+    `5分鐘趨勢點：${wl?.series_5min?.length??0}｜QPE 歷史點：${latestHydro?.rainfall?.series?.length??0}`;
+
+  renderHydroChart();
+  renderPublicHome();
+}
+
+async function updateHydro(){
+  try{
+    const resp=await fetch(`/api/hydro?_=${Date.now()}`,{cache:"no-store"});
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data=await resp.json();
+    latestHydro=data;
+    renderHydro();
+  }catch(e){
+    latestHydro=null;
+    $("hydroStatus").textContent=`水位/降雨聯合資料讀取失敗：${e instanceof Error?e.message:String(e)}`;
+    renderHydroChart();
+    renderPublicHome();
+  }
+}
+
 // ---------- Public homepage ----------
 function setPublicCard(id,kind){
   const el=$(id);
@@ -1639,6 +1919,32 @@ function setPublicCard(id,kind){
 }
 
 function publicFloodAttention(){
+  const waterWarning=hydroWarningState();
+  const water1h=Number(latestHydro?.waterlevel?.change?.hour_1);
+
+  if(waterWarning.code==="level1"){
+    return {kind:"alert",level:"高",reason:"台塑仁四橋水位已達一級警戒（13 m）"};
+  }
+  if(waterWarning.code==="level2"){
+    return {kind:"alert",level:"高",reason:"台塑仁四橋水位已達二級警戒（12 m）"};
+  }
+  if(waterWarning.code==="level3"){
+    return {kind:"caution",level:"留意",reason:"台塑仁四橋水位已達三級警戒（11 m）"};
+  }
+  if(
+    waterWarning.code==="normal" &&
+    Number.isFinite(waterWarning.distance) &&
+    waterWarning.distance<=0.30 &&
+    Number.isFinite(water1h) &&
+    water1h>0
+  ){
+    return {
+      kind:"caution",
+      level:"留意",
+      reason:`台塑仁四橋距三級警戒僅 ${waterWarning.distance.toFixed(2)} m，且水位仍在上升`
+    };
+  }
+
   const qpe10=areaRadius(latestQpeArea,10);
   let msm10=null;
   let wrf10=null;
@@ -1837,6 +2143,25 @@ function renderPublicHome(){
   $("publicFloodSub").textContent=flood.reason;
   setPublicCard("publicFloodCard",flood.kind);
 
+  const waterCurrent=Number(latestHydro?.waterlevel?.current?.value);
+  const water1h=Number(latestHydro?.waterlevel?.change?.hour_1);
+  if(Number.isFinite(waterCurrent)){
+    const waterWarning=hydroWarningState();
+    $("publicWaterMain").textContent=`${waterCurrent.toFixed(2)} ${hydroUnitLabel()}｜${waterWarning.label}`;
+    const trendText=Number.isFinite(water1h)
+      ? `${water1h>0?"↑ 上升":water1h<0?"↓ 下降":"→ 持平"}｜1h ${hydroSigned(water1h)}`
+      : "1h 趨勢資料仍不足";
+    const gapText=waterWarning.code==="normal" && Number.isFinite(waterWarning.distance)
+      ? `｜距三級 ${waterWarning.distance.toFixed(2)} m`
+      : "";
+    $("publicWaterSub").textContent=`${trendText}${gapText}`;
+    setPublicCard("publicWaterCard",waterWarning.kind);
+  }else{
+    $("publicWaterMain").textContent="等待水位資料";
+    $("publicWaterSub").textContent="三級 11 m｜二級 12 m｜一級 13 m。";
+    setPublicCard("publicWaterCard","caution");
+  }
+
   // Headline prioritizes observed reality, then flood/short-term risk.
   let headlineKind="good";
   let headline="目前雨勢平穩，暫無明顯廣泛強雨訊號";
@@ -1875,6 +2200,11 @@ function renderPublicHome(){
   }else if(areaCmp?.level==="area_divergence"){
     attention+=
       " MSM 與 WRF 連 10 km 面積訊號都分歧，代表整體雨區不確定性較高。";
+  }
+
+  const waterDelta=Number(latestHydro?.waterlevel?.change?.hour_1);
+  if(Number.isFinite(waterDelta)){
+    attention+=` 水位過去1h ${waterDelta>0?"上升":waterDelta<0?"下降":"持平"} ${hydroSigned(waterDelta)}；水位警戒已納入積水注意度。`;
   }
 
   $("publicAttention").textContent=attention;
@@ -2572,9 +2902,11 @@ async function updateWrfPoint(){
 
 // ---------- Auto refresh ----------
 const CWA_REFRESH_MS = 10 * 60 * 1000;       // 10 minutes
+const HYDRO_REFRESH_MS = 1 * 60 * 1000;      // 1 minute
 const MODEL_REFRESH_MS = 60 * 60 * 1000;     // 60 minutes
 
 let lastCwaAutoUpdate = null;
+let lastHydroAutoUpdate = null;
 let lastModelAutoUpdate = null;
 
 function refreshAutoStatus(){
@@ -2605,12 +2937,25 @@ async function autoUpdateModels(){
   }
 }
 
+async function autoUpdateHydro(){
+  try{
+    await updateHydro();
+  }finally{
+    lastHydroAutoUpdate = new Date();
+  }
+}
+
 // Open page: update immediately.
 autoUpdateModels();
 autoUpdateCwa();
+autoUpdateHydro();
+// Background water/QPE updaters start a few seconds after the server. Retry
+// once shortly after page load so the first user does not wait one minute.
+setTimeout(autoUpdateHydro, 8000);
 
 // Keep updating while the page remains open.
 setInterval(autoUpdateCwa, CWA_REFRESH_MS);
+setInterval(autoUpdateHydro, HYDRO_REFRESH_MS);
 setInterval(autoUpdateModels, MODEL_REFRESH_MS);
 
 // If the browser/tab was suspended in the background, refresh stale data
@@ -2623,10 +2968,24 @@ document.addEventListener("visibilitychange",()=>{
   if(!lastCwaAutoUpdate || now-lastCwaAutoUpdate.getTime() >= CWA_REFRESH_MS){
     autoUpdateCwa();
   }
+  if(!lastHydroAutoUpdate || now-lastHydroAutoUpdate.getTime() >= HYDRO_REFRESH_MS){
+    autoUpdateHydro();
+  }
   if(!lastModelAutoUpdate || now-lastModelAutoUpdate.getTime() >= MODEL_REFRESH_MS){
     autoUpdateModels();
   }
 });
+
+document.querySelectorAll("[data-hydro-hours]").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    const hours=Number(btn.dataset.hydroHours);
+    if(![6,12,24].includes(hours)) return;
+    hydroHours=hours;
+    document.querySelectorAll("[data-hydro-hours]").forEach(x=>x.classList.toggle("active",x===btn));
+    renderHydroChart();
+  });
+});
+window.addEventListener("resize",()=>renderHydroChart());
 
 refreshAutoStatus();
 </script>

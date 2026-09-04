@@ -738,3 +738,187 @@ WRF / QPE / CWA GFS 後端本來就以環境變數固定仁武目標，
 - 不改 CWA GFS schema
 - 不會重新下載大型 GRIB2
 - Railway Volume 可直接沿用
+
+
+## v10：水位 + 降雨聯合趨勢
+
+v10 新增 PI Recorded 水位資料整合。已知回傳格式：
+
+```json
+[
+  {"Timestamp":"2026-09-04 15:18:10","Value":"8.0500002"},
+  {"Timestamp":"2026-09-04 15:18:32","Value":"8.04"}
+]
+```
+
+Node 會固定向：
+
+```text
+POST https://web.fpcitc.com.tw/PIWebAPI/streams/Recorded
+server = JWRTPMS
+tag    = JW_waterlevelmeter
+```
+
+取得資料。第一次啟動抓 `*-1d`，建立最近 24h 水位歷線；之後每 5 分鐘只抓 `*-15m` 並與既有資料合併，避免每次重新下載整天資料。
+
+### 水位資料處理
+
+原始水位可能每秒多筆，因此 v10 會：
+
+```text
+原始 Timestamp / Value
+→ 每 1 分鐘中位數
+→ 計算 30m / 1h / 3h 變化
+→ 每 5 分鐘中位數供前端畫圖
+```
+
+`Timestamp` 依來源視為 `Asia/Taipei`。
+
+目前尚未確認 `Value` 的工程單位，因此預設顯示：
+
+```text
+8.04 原始單位
+1h +0.03 原始單位
+↑ 水位上升
+```
+
+**不會自行把 8.04 解讀成 8.04 m / cm，也不會自行設定危險水位。**
+
+確認工程單位後，只需 Railway / `.env` 設定：
+
+```env
+WATERLEVEL_UNIT=m
+```
+
+或實際正確單位即可。
+
+### QPE 降雨歷史
+
+QPE updater 新增：
+
+```text
+/data/qpe-history-renwu.json
+```
+
+最多保留 72h，欄位包括：
+
+```text
+point_1h_mm
+radius_5km_mean_1h_mm
+radius_10km_mean_1h_mm
+radius_10km_max_1h_mm
+radius_10km_ge20_pct
+```
+
+注意：這些是每個觀測時間點「往前 1 小時」的滾動 QPE，彼此會重疊，**不可把相鄰值直接相加**。
+
+v10 剛部署時，水位可由 PI API 立即回補 24h；QPE 歷史則從 v10 啟用後逐步累積。
+
+### API
+
+```text
+GET /api/waterlevel
+GET /api/waterlevel/status
+GET /api/hydro
+POST /api/waterlevel/refresh   (ADMIN_TOKEN)
+```
+
+`/api/hydro` 將水位與 QPE 歷史整理成同一份前端資料。
+
+### 首頁
+
+新增：
+
+```text
+水位趨勢
+目前水位原始值
+30 分鐘變化
+1 小時變化
+QPE 過去 1h
+6h / 12h / 24h 聯合趨勢圖
+```
+
+圖表：
+
+- 黃線：水位 5 分鐘中位數（左軸）
+- 藍柱：仁武 10 km QPE 過去 1h 面平均（右軸，mm）
+- X 軸：共用時間
+
+水位目前只作觀測趨勢，不直接改寫「積水注意度」等級；待確認水位計位置、工程單位與正式警戒基準後，再納入風險判讀。
+
+### Railway Variables
+
+```env
+WATERLEVEL_ENABLED=true
+WATERLEVEL_REFRESH_MINUTES=5
+WATERLEVEL_ENDPOINT=https://web.fpcitc.com.tw/PIWebAPI/streams/Recorded
+WATERLEVEL_SERVER=JWRTPMS
+WATERLEVEL_TAG=JW_waterlevelmeter
+WATERLEVEL_NAME=JW_waterlevelmeter
+WATERLEVEL_UNIT=
+```
+
+`WATERLEVEL_UNIT` 先留空。
+
+### 測試
+
+```powershell
+npm run waterlevel:check
+npm run dev
+```
+
+再開：
+
+```text
+http://localhost:8080/api/waterlevel
+http://localhost:8080/api/waterlevel/status
+http://localhost:8080/api/hydro
+```
+
+
+## v10.1：台塑仁四橋水位警戒 + 每分鐘更新
+
+`JW_waterlevelmeter` 設定為：
+
+```text
+區別：仁武
+流域：後勁溪
+水位站：台塑仁四橋
+單位：m
+
+三級警戒：11 m
+二級警戒：12 m
+一級警戒：13 m
+```
+
+水位 API：首次 `starttime=*-1d` 回補一天；之後背景 updater 每 1 分鐘執行一次，每次 `starttime=*-1m`，並依 Timestamp 去重合併到 `/data/waterlevel-renwu.json`。
+
+警戒判讀：
+
+```text
+< 11 m       低於三級警戒
+11–<12 m     三級警戒
+12–<13 m     二級警戒
+>=13 m       一級警戒
+```
+
+首頁會顯示目前水位、1h 趨勢與距下一警戒值。三級以上會納入本站「積水注意度」；若未達三級但距三級 <= 0.30 m 且仍上升，也會先顯示「留意」。
+
+Railway Variables：
+
+```env
+WATERLEVEL_ENABLED=true
+WATERLEVEL_REFRESH_MINUTES=1
+WATERLEVEL_ENDPOINT=https://web.fpcitc.com.tw/PIWebAPI/streams/Recorded
+WATERLEVEL_SERVER=JWRTPMS
+WATERLEVEL_TAG=JW_waterlevelmeter
+WATERLEVEL_NAME=台塑仁四橋
+WATERLEVEL_DISTRICT=仁武
+WATERLEVEL_BASIN=後勁溪
+WATERLEVEL_UNIT=m
+WATERLEVEL_LEVEL3=11
+WATERLEVEL_LEVEL2=12
+WATERLEVEL_LEVEL1=13
+```
+
+此版不改 WRF / QPE / CWA GFS schema，不會觸發大型 GRIB2 重新下載。
