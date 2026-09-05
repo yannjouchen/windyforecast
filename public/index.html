@@ -100,6 +100,12 @@ button.secondary{background:#263552;color:var(--text);border:1px solid var(--lin
 .hydro-range{display:flex;gap:7px;flex-wrap:wrap}
 .hydro-range button{padding:7px 10px;font-size:12px}
 .hydro-range button.active{outline:2px solid #8fb1ff}
+.hydro-query{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px}
+.hydro-query label{font-size:12px;color:var(--muted);display:block;margin-bottom:5px}
+.hydro-query input{background:#0d1627;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 10px}
+.hydro-query button{padding:9px 13px}
+.hydro-query-status{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
+
 .hydro-note{margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6}
 details.tech-details{margin-top:16px;border:1px solid var(--line);border-radius:16px;background:#0f1728;overflow:hidden}
 details.tech-details>summary{cursor:pointer;padding:14px 16px;font-weight:800;list-style:none}
@@ -216,6 +222,22 @@ a{color:#9bbcff}
         <button type="button" class="secondary" data-hydro-hours="12">12h</button>
         <button type="button" class="secondary active" data-hydro-hours="24">24h</button>
       </div>
+    </div>
+
+    <div class="hydro-query">
+      <div>
+        <label for="hydroStart">開始時間</label>
+        <input id="hydroStart" type="datetime-local" step="60">
+      </div>
+      <div>
+        <label for="hydroEnd">結束時間</label>
+        <input id="hydroEnd" type="datetime-local" step="60">
+      </div>
+      <button type="button" id="hydroQueryBtn" class="secondary">查詢日期區間</button>
+      <button type="button" id="hydroLiveBtn" class="secondary">回到即時</button>
+    </div>
+    <div class="hydro-query-status" id="hydroQueryStatus">
+      自訂歷史水位查詢使用台灣時間，單次最多 7 天；例如 2026-09-01 11:55 → 2026-09-02 11:55。
     </div>
 
     <div class="muted" style="margin-top:6px">
@@ -717,6 +739,8 @@ let latestAlignedComparison = null;
 let latestGaugePast10 = NaN;
 let latestPublicHomeUpdatedAt = null;
 let latestHydro = null;
+let latestHydroHistory = null;
+let hydroHistoryMode = false;
 let hydroHours = 24;
 
 const rollingMax=(arr,n)=>{
@@ -1753,7 +1777,112 @@ function hydroTrendText(){
   return "→ 過去 1h 水位持平";
 }
 
+function toLocalInputValue(date){
+  const d=new Date(date);
+  const pad=n=>String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function setDefaultHydroQueryRange(){
+  if(!$("hydroStart")||!$("hydroEnd")) return;
+  const end=new Date();
+  const start=new Date(end.getTime()-24*60*60*1000);
+  $("hydroStart").value=toLocalInputValue(start);
+  $("hydroEnd").value=toLocalInputValue(end);
+}
+
+async function queryHydroHistory(){
+  const start=$("hydroStart")?.value||"";
+  const end=$("hydroEnd")?.value||"";
+
+  if(!start||!end){
+    $("hydroQueryStatus").textContent="請選擇開始時間與結束時間。";
+    return;
+  }
+
+  const startMs=new Date(start).getTime();
+  const endMs=new Date(end).getTime();
+  if(!Number.isFinite(startMs)||!Number.isFinite(endMs)||endMs<=startMs){
+    $("hydroQueryStatus").textContent="結束時間必須晚於開始時間。";
+    return;
+  }
+  if(endMs-startMs>7*24*60*60*1000){
+    $("hydroQueryStatus").textContent="單次查詢最多 7 天。";
+    return;
+  }
+
+  $("hydroQueryBtn").disabled=true;
+  $("hydroQueryStatus").textContent="正在查詢台塑仁四橋歷史水位…";
+
+  try{
+    const u=new URL("/api/waterlevel/history",location.origin);
+    u.searchParams.set("start",start.replace("T"," "));
+    u.searchParams.set("end",end.replace("T"," "));
+
+    const resp=await fetch(u,{cache:"no-store"});
+    const data=await resp.json();
+
+    if(!resp.ok||data?.status!=="ok"){
+      throw new Error(data?.error||`HTTP ${resp.status}`);
+    }
+
+    latestHydroHistory=data;
+    hydroHistoryMode=true;
+    document.querySelectorAll("[data-hydro-hours]").forEach(x=>{
+      x.classList.remove("active");
+    });
+
+    $("hydroQueryStatus").textContent=
+      `歷史水位：${data.query.start} → ${data.query.end}｜`+
+      `${data.series.length} 個圖表點｜每 ${data.chart_bucket_minutes} 分鐘一點`+
+      (data.raw_count?`｜原始 ${data.raw_count} 筆`:"");
+
+    renderHydroChart();
+  }catch(e){
+    $("hydroQueryStatus").textContent=
+      "歷史查詢失敗："+(e instanceof Error?e.message:String(e));
+  }finally{
+    $("hydroQueryBtn").disabled=false;
+  }
+}
+
+function returnHydroLive(){
+  hydroHistoryMode=false;
+  latestHydroHistory=null;
+  hydroHours=24;
+  document.querySelectorAll("[data-hydro-hours]").forEach(x=>{
+    x.classList.toggle("active",Number(x.dataset.hydroHours)===24);
+  });
+  $("hydroQueryStatus").textContent=
+    "已回到即時模式｜顯示最近 24 小時水位與本站已保存的 QPE 歷史。";
+  setDefaultHydroQueryRange();
+  renderHydroChart();
+}
+
 function hydroFilteredData(){
+  if(hydroHistoryMode && Array.isArray(latestHydroHistory?.series)){
+    const startText=latestHydroHistory?.query?.start;
+    const endText=latestHydroHistory?.query?.end;
+    const cutoff=Date.parse(String(startText).replace(" ","T")+":00+08:00");
+    const end=Date.parse(String(endText).replace(" ","T")+":00+08:00");
+
+    const water=latestHydroHistory.series
+      .map(x=>({t:Date.parse(x.time),v:Number(x.value)}))
+      .filter(x=>Number.isFinite(x.t)&&Number.isFinite(x.v));
+
+    // Rain overlay is only shown if this app actually retained QPE values
+    // for the requested interval. Older water-level queries may have no QPE.
+    const rain=(latestHydro?.rainfall?.series||[])
+      .map(x=>({t:Date.parse(x.time),v:Number(x.radius_10km_mean_1h_mm)}))
+      .filter(x=>
+        Number.isFinite(x.t)&&Number.isFinite(x.v)&&
+        Number.isFinite(cutoff)&&Number.isFinite(end)&&
+        x.t>=cutoff&&x.t<=end
+      );
+
+    return {water,rain,cutoff,end,history:true};
+  }
+
   const cutoff=Date.now()-hydroHours*60*60*1000;
   const water=(latestHydro?.waterlevel?.series_5min||[])
     .map(x=>({t:Date.parse(x.time),v:Number(x.value)}))
@@ -1761,7 +1890,7 @@ function hydroFilteredData(){
   const rain=(latestHydro?.rainfall?.series||[])
     .map(x=>({t:Date.parse(x.time),v:Number(x.radius_10km_mean_1h_mm)}))
     .filter(x=>Number.isFinite(x.t)&&Number.isFinite(x.v)&&x.t>=cutoff);
-  return {water,rain,cutoff,end:Date.now()};
+  return {water,rain,cutoff,end:Date.now(),history:false};
 }
 
 function renderHydroChart(){
@@ -1777,7 +1906,7 @@ function renderHydroChart(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,width,height);
 
-  const {water,rain,cutoff,end}=hydroFilteredData();
+  const {water,rain,cutoff,end,history}=hydroFilteredData();
   const pad={l:58,r:54,t:30,b:42};
   const plotW=width-pad.l-pad.r;
   const plotH=height-pad.t-pad.b;
@@ -1788,7 +1917,11 @@ function renderHydroChart(){
   ctx.lineWidth=1;
 
   if(!water.length&&!rain.length){
-    ctx.fillText("等待水位 / QPE 歷史資料",pad.l,pad.t+20);
+    ctx.fillText(
+      history ? "查詢區間沒有可用的水位 / QPE 資料" : "等待水位 / QPE 歷史資料",
+      pad.l,
+      pad.t+20
+    );
     return;
   }
 
@@ -1826,13 +1959,28 @@ function renderHydroChart(){
   for(let i=0;i<=4;i++){
     const t=cutoff+(end-cutoff)*i/4;
     const d=new Date(t);
-    const label=d.toLocaleTimeString("zh-TW",{hour12:false,hour:"2-digit",minute:"2-digit"});
+    const rangeHours=(end-cutoff)/(60*60*1000);
+    const label=(history || rangeHours>24)
+      ? d.toLocaleString("zh-TW",{
+          hour12:false,
+          month:"2-digit",
+          day:"2-digit",
+          hour:"2-digit",
+          minute:"2-digit"
+        })
+      : d.toLocaleTimeString("zh-TW",{
+          hour12:false,
+          hour:"2-digit",
+          minute:"2-digit"
+        });
     ctx.fillStyle="#9aa8c7";
     ctx.fillText(label,x(t),height-16);
   }
 
   // QPE rolling 1h bars (right axis)
-  const barW=Math.max(2,plotW/Math.max(48,hydroHours*6)*0.75);
+  const rangeHours=Math.max(1,(end-cutoff)/(60*60*1000));
+  const expectedBars=Math.max(48,rangeHours*6);
+  const barW=Math.max(1.5,plotW/expectedBars*0.75);
   ctx.fillStyle="rgba(132,168,255,0.38)";
   for(const p of rain){
     const xx=x(p.t);
@@ -1859,6 +2007,12 @@ function renderHydroChart(){
   ctx.fillStyle="#9fb8ff";
   ctx.textAlign="right";
   ctx.fillText("QPE 10km平均｜過去1h (mm)",width-pad.r,pad.t-12);
+
+  if(history){
+    ctx.textAlign="center";
+    ctx.fillStyle="#9aa8c7";
+    ctx.fillText("歷史查詢",width/2,pad.t-12);
+  }
 }
 
 function renderHydro(){
@@ -2980,11 +3134,19 @@ document.querySelectorAll("[data-hydro-hours]").forEach(btn=>{
   btn.addEventListener("click",()=>{
     const hours=Number(btn.dataset.hydroHours);
     if(![6,12,24].includes(hours)) return;
+    hydroHistoryMode=false;
+    latestHydroHistory=null;
     hydroHours=hours;
     document.querySelectorAll("[data-hydro-hours]").forEach(x=>x.classList.toggle("active",x===btn));
+    $("hydroQueryStatus").textContent=`即時模式｜最近 ${hours} 小時`;
     renderHydroChart();
   });
 });
+
+$("hydroQueryBtn").addEventListener("click",queryHydroHistory);
+$("hydroLiveBtn").addEventListener("click",returnHydroLive);
+setDefaultHydroQueryRange();
+
 window.addEventListener("resize",()=>renderHydroChart());
 
 refreshAutoStatus();

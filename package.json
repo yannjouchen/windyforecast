@@ -1,9 +1,9 @@
 {
   "name": "windyforecast-renwu",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "private": true,
   "type": "module",
-  "description": "仁武防災雨量儀表板 - v10.1 台塑仁四橋水位警戒 + 每分鐘更新",
+  "description": "仁武防災雨量儀表板 - v10.2 水位自訂日期區間查詢",
   "main": "server.mjs",
   "scripts": {
     "dev": "node server.mjs",

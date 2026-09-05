@@ -353,6 +353,201 @@ app.get("/api/cwa", async (req, res) => {
   }
 });
 
+
+function parseWaterHistoryLocalTime(value) {
+  const text = String(value || "").trim();
+  const m = text.match(
+    /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/
+  );
+  if (!m) return null;
+
+  const [, y, mo, d, h, mi] = m;
+  const iso = `${y}-${mo}-${d}T${h}:${mi}:00+08:00`;
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) return null;
+
+  // Reject rollover dates such as 2026-02-31.
+  const verify = new Date(ms + 8 * 60 * 60 * 1000);
+  if (
+    verify.getUTCFullYear() !== Number(y) ||
+    verify.getUTCMonth() + 1 !== Number(mo) ||
+    verify.getUTCDate() !== Number(d) ||
+    verify.getUTCHours() !== Number(h) ||
+    verify.getUTCMinutes() !== Number(mi)
+  ) {
+    return null;
+  }
+
+  return {
+    text: `${y}-${mo}-${d} ${h}:${mi}`,
+    ms
+  };
+}
+
+function median(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2
+    ? sorted[mid]
+    : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function bucketWaterHistory(points, bucketMinutes) {
+  const bucketMs = bucketMinutes * 60 * 1000;
+  const buckets = new Map();
+
+  for (const point of points) {
+    const t = Date.parse(point.time);
+    const key = Math.floor(t / bucketMs) * bucketMs;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(point.value);
+  }
+
+  return [...buckets.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([time, values]) => ({
+      time: new Date(time).toISOString(),
+      value: Number(median(values).toFixed(4))
+    }));
+}
+
+async function fetchWaterLevelHistoryRange(startInput, endInput) {
+  const start = parseWaterHistoryLocalTime(startInput);
+  const end = parseWaterHistoryLocalTime(endInput);
+
+  if (!start || !end) {
+    const error = new Error("日期格式需為 YYYY-MM-DD HH:mm（台灣時間）");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (end.ms <= start.ms) {
+    const error = new Error("結束時間必須晚於開始時間");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const maxRangeMs = 7 * 24 * 60 * 60 * 1000;
+  if (end.ms - start.ms > maxRangeMs) {
+    const error = new Error("單次歷史水位查詢最多 7 天");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const response = await fetchWithTimeout(
+    WATERLEVEL_ENDPOINT,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "windyforecast-renwu/10.2"
+      },
+      body: JSON.stringify({
+        server: WATERLEVEL_SERVER,
+        tag: WATERLEVEL_TAG,
+        starttime: start.text,
+        endtime: end.text
+      }),
+      cache: "no-store"
+    },
+    30000
+  );
+
+  if (!response.ok) {
+    throw new Error(`水位歷史 API HTTP ${response.status}`);
+  }
+
+  const raw = await response.json();
+  if (!Array.isArray(raw)) {
+    throw new Error("水位歷史 API 回傳格式不是陣列");
+  }
+
+  const parsed = raw
+    .map(item => {
+      const localTime = String(item?.Timestamp || "").trim();
+      const value = Number(item?.Value);
+      const match = localTime.match(
+        /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/
+      );
+      if (!match || !Number.isFinite(value)) return null;
+
+      const [, y, mo, d, h, mi, sec = "00"] = match;
+      const ms = Date.parse(
+        `${y}-${mo}-${d}T${h}:${mi}:${sec}+08:00`
+      );
+      if (!Number.isFinite(ms)) return null;
+
+      return {
+        time: new Date(ms).toISOString(),
+        value
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => Date.parse(a.time) - Date.parse(b.time));
+
+  const oneMinute = bucketWaterHistory(parsed, 1);
+
+  // Keep the browser responsive on multi-day queries.
+  const maxChartPoints = 1500;
+  const bucketMinutes = Math.max(
+    1,
+    Math.ceil(oneMinute.length / maxChartPoints)
+  );
+  const chartSeries =
+    bucketMinutes === 1
+      ? oneMinute
+      : bucketWaterHistory(oneMinute, bucketMinutes);
+
+  return {
+    status: "ok",
+    station: {
+      district: WATERLEVEL_DISTRICT,
+      basin: WATERLEVEL_BASIN,
+      name: WATERLEVEL_NAME,
+      unit: WATERLEVEL_UNIT,
+      warning_levels: {
+        level3: WATERLEVEL_LEVEL3,
+        level2: WATERLEVEL_LEVEL2,
+        level1: WATERLEVEL_LEVEL1
+      }
+    },
+    query: {
+      start: start.text,
+      end: end.text,
+      timezone: "Asia/Taipei",
+      max_range_days: 7
+    },
+    raw_count: parsed.length,
+    minute_count: oneMinute.length,
+    chart_bucket_minutes: bucketMinutes,
+    series: chartSeries
+  };
+}
+
+
+app.get("/api/waterlevel/history", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+
+  if (!WATERLEVEL_ENABLED) {
+    return jsonError(res, 503, "水位整合目前未啟用");
+  }
+
+  try {
+    const result = await fetchWaterLevelHistoryRange(
+      req.query.start,
+      req.query.end
+    );
+    return res.json(result);
+  } catch (error) {
+    const status = Number(error?.statusCode) || 502;
+    return jsonError(
+      res,
+      status,
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+});
+
 app.get("/api/waterlevel", async (_req, res) => {
   res.set("Cache-Control", "no-store");
   try {
@@ -419,7 +614,7 @@ app.get("/api/hydro", async (_req, res) => {
       status: "ok",
       schema_version: 1,
       updated_at: new Date().toISOString(),
-      retention_hours: 72,
+      retention_hours: 168,
       meaning:
         "Temporary one-point fallback until qpe-history-renwu.json is populated.",
       series: [
