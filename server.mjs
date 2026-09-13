@@ -487,16 +487,20 @@ async function fetchWaterLevelHistoryRange(startInput, endInput) {
 
   const oneMinute = bucketWaterHistory(parsed, 1);
 
-  // Keep the browser responsive on multi-day queries.
-  const maxChartPoints = 1500;
-  const bucketMinutes = Math.max(
-    1,
-    Math.ceil(oneMinute.length / maxChartPoints)
+  // v10.3: deterministic sampling keeps live/history charts visually
+  // consistent instead of changing bucket size with raw sample count.
+  const rangeHours = (end.ms - start.ms) / (60 * 60 * 1000);
+  const bucketMinutes =
+    rangeHours <= 24
+      ? 5
+      : rangeHours <= 72
+        ? 10
+        : 15;
+
+  const chartSeries = bucketWaterHistory(
+    oneMinute,
+    bucketMinutes
   );
-  const chartSeries =
-    bucketMinutes === 1
-      ? oneMinute
-      : bucketWaterHistory(oneMinute, bucketMinutes);
 
   return {
     status: "ok",

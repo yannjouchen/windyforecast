@@ -1834,7 +1834,7 @@ async function queryHydroHistory(){
 
     $("hydroQueryStatus").textContent=
       `歷史水位：${data.query.start} → ${data.query.end}｜`+
-      `${data.series.length} 個圖表點｜每 ${data.chart_bucket_minutes} 分鐘一點`+
+      `每 ${data.chart_bucket_minutes} 分鐘一點｜${data.series.length} 個圖表點`+
       (data.raw_count?`｜原始 ${data.raw_count} 筆`:"");
 
     renderHydroChart();
@@ -1859,20 +1859,100 @@ function returnHydroLive(){
   renderHydroChart();
 }
 
+
+function hydroMedian(values){
+  const sorted=[...values].sort((a,b)=>a-b);
+  const mid=Math.floor(sorted.length/2);
+  return sorted.length%2
+    ? sorted[mid]
+    : (sorted[mid-1]+sorted[mid])/2;
+}
+
+function bucketHydroSeries(series,bucketMinutes){
+  const bucketMs=bucketMinutes*60*1000;
+  const buckets=new Map();
+
+  for(const point of series){
+    const t=Number(point?.t);
+    const v=Number(point?.v);
+    if(!Number.isFinite(t)||!Number.isFinite(v)) continue;
+    const key=Math.floor(t/bucketMs)*bucketMs;
+    if(!buckets.has(key)) buckets.set(key,[]);
+    buckets.get(key).push(v);
+  }
+
+  return [...buckets.entries()]
+    .sort((a,b)=>a[0]-b[0])
+    .map(([t,values])=>({
+      t,
+      v:hydroMedian(values)
+    }));
+}
+
+function hydroBucketMinutesForRange(rangeHours){
+  if(rangeHours<=24) return 5;
+  if(rangeHours<=72) return 10;
+  return 15;
+}
+
+function niceHydroTickStep(span){
+  const desired=Math.max(span/7,0.01);
+  const choices=[0.01,0.02,0.05,0.1,0.2,0.5,1,2,5];
+  return choices.find(x=>x>=desired) ?? 10;
+}
+
+function niceHydroAxis(values){
+  if(!values.length){
+    return {min:0,max:0.10,step:0.02};
+  }
+
+  const rawMin=Math.min(...values);
+  const rawMax=Math.max(...values);
+  const rawSpan=Math.max(0,rawMax-rawMin);
+
+  // Prevent a few centimeters of movement from filling the entire plot.
+  const targetSpan=Math.max(rawSpan*1.24,0.10);
+  const step=niceHydroTickStep(targetSpan);
+
+  const extra=Math.max(0,targetSpan-rawSpan);
+  let min=Math.floor((rawMin-extra/2)/step)*step;
+  let max=Math.ceil((rawMax+extra/2)/step)*step;
+
+  if(max-min<0.10){
+    const center=(rawMin+rawMax)/2;
+    min=Math.floor((center-0.05)/step)*step;
+    max=Math.ceil((center+0.05)/step)*step;
+  }
+
+  if(max<=min){
+    max=min+Math.max(0.10,step*5);
+  }
+
+  return {
+    min:Number(min.toFixed(4)),
+    max:Number(max.toFixed(4)),
+    step
+  };
+}
+
 function hydroFilteredData(){
   if(hydroHistoryMode && Array.isArray(latestHydroHistory?.series)){
     const startText=latestHydroHistory?.query?.start;
     const endText=latestHydroHistory?.query?.end;
     const cutoff=Date.parse(String(startText).replace(" ","T")+":00+08:00");
     const end=Date.parse(String(endText).replace(" ","T")+":00+08:00");
+    const rangeHours=(end-cutoff)/(60*60*1000);
+    const bucketMinutes=hydroBucketMinutesForRange(rangeHours);
 
-    const water=latestHydroHistory.series
+    const waterRaw=latestHydroHistory.series
       .map(x=>({t:Date.parse(x.time),v:Number(x.value)}))
       .filter(x=>Number.isFinite(x.t)&&Number.isFinite(x.v));
 
-    // Rain overlay is only shown if this app actually retained QPE values
-    // for the requested interval. Older water-level queries may have no QPE.
-    const rain=(latestHydro?.rainfall?.series||[])
+    const water=bucketHydroSeries(waterRaw,bucketMinutes);
+
+    // Historical QPE can only be shown for periods actually retained by this
+    // app. Never fill missing rainfall with another date.
+    const rainRaw=(latestHydro?.rainfall?.series||[])
       .map(x=>({t:Date.parse(x.time),v:Number(x.radius_10km_mean_1h_mm)}))
       .filter(x=>
         Number.isFinite(x.t)&&Number.isFinite(x.v)&&
@@ -1880,17 +1960,36 @@ function hydroFilteredData(){
         x.t>=cutoff&&x.t<=end
       );
 
-    return {water,rain,cutoff,end,history:true};
+    return {
+      water,
+      rain:bucketHydroSeries(rainRaw,bucketMinutes),
+      cutoff,
+      end,
+      history:true,
+      bucketMinutes
+    };
   }
 
   const cutoff=Date.now()-hydroHours*60*60*1000;
-  const water=(latestHydro?.waterlevel?.series_5min||[])
+  const end=Date.now();
+  const bucketMinutes=hydroBucketMinutesForRange(hydroHours);
+
+  const waterRaw=(latestHydro?.waterlevel?.series_5min||[])
     .map(x=>({t:Date.parse(x.time),v:Number(x.value)}))
     .filter(x=>Number.isFinite(x.t)&&Number.isFinite(x.v)&&x.t>=cutoff);
-  const rain=(latestHydro?.rainfall?.series||[])
+
+  const rainRaw=(latestHydro?.rainfall?.series||[])
     .map(x=>({t:Date.parse(x.time),v:Number(x.radius_10km_mean_1h_mm)}))
     .filter(x=>Number.isFinite(x.t)&&Number.isFinite(x.v)&&x.t>=cutoff);
-  return {water,rain,cutoff,end:Date.now(),history:false};
+
+  return {
+    water:bucketHydroSeries(waterRaw,bucketMinutes),
+    rain:bucketHydroSeries(rainRaw,bucketMinutes),
+    cutoff,
+    end,
+    history:false,
+    bucketMinutes
+  };
 }
 
 function renderHydroChart(){
@@ -1906,7 +2005,7 @@ function renderHydroChart(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,width,height);
 
-  const {water,rain,cutoff,end,history}=hydroFilteredData();
+  const {water,rain,cutoff,end,history,bucketMinutes}=hydroFilteredData();
   const pad={l:58,r:54,t:30,b:42};
   const plotW=width-pad.l-pad.r;
   const plotH=height-pad.t-pad.b;
@@ -1926,32 +2025,43 @@ function renderHydroChart(){
   }
 
   const waterVals=water.map(x=>x.v);
-  let wMin=waterVals.length?Math.min(...waterVals):0;
-  let wMax=waterVals.length?Math.max(...waterVals):1;
-  if(wMin===wMax){
-    const p=Math.max(Math.abs(wMin)*0.01,0.05);
-    wMin-=p; wMax+=p;
-  }else{
-    const p=(wMax-wMin)*0.12;
-    wMin-=p; wMax+=p;
-  }
+  const waterAxis=niceHydroAxis(waterVals);
+  const wMin=waterAxis.min;
+  const wMax=waterAxis.max;
   const rainMax=Math.max(1,...rain.map(x=>x.v))*1.15;
   const x=t=>pad.l+((t-cutoff)/(end-cutoff))*plotW;
   const yw=v=>pad.t+(wMax-v)/(wMax-wMin)*plotH;
   const yr=v=>pad.t+(rainMax-v)/rainMax*plotH;
 
-  // grid + labels
-  for(let i=0;i<=4;i++){
-    const y=pad.t+(plotH*i/4);
+  // grid + labels with easy-to-read water-level ticks.
+  const tickStep=waterAxis.step;
+  const leftTicks=[];
+  for(
+    let v=Math.ceil((wMin-1e-9)/tickStep)*tickStep;
+    v<=wMax+tickStep*0.01;
+    v+=tickStep
+  ){
+    leftTicks.push(Number(v.toFixed(4)));
+  }
+
+  const ticks=leftTicks.length>=2 ? leftTicks : [wMin,wMax];
+
+  for(const wv of ticks){
+    const y=yw(wv);
     ctx.strokeStyle="#263451";
-    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(width-pad.r,y); ctx.stroke();
-    const wv=wMax-(wMax-wMin)*i/4;
-    const rv=rainMax*(1-i/4);
+    ctx.beginPath();
+    ctx.moveTo(pad.l,y);
+    ctx.lineTo(width-pad.r,y);
+    ctx.stroke();
+
+    const ratio=(wMax-wv)/(wMax-wMin);
+    const rv=rainMax*ratio;
+
     ctx.fillStyle="#9aa8c7";
     ctx.textAlign="right";
     ctx.fillText(wv.toFixed(2),pad.l-7,y+4);
     ctx.textAlign="left";
-    ctx.fillText(`${rv.toFixed(1)}`,width-pad.r+7,y+4);
+    ctx.fillText(`${Math.max(0,rv).toFixed(1)}`,width-pad.r+7,y+4);
   }
 
   // time labels
@@ -2008,11 +2118,13 @@ function renderHydroChart(){
   ctx.textAlign="right";
   ctx.fillText("QPE 10km平均｜過去1h (mm)",width-pad.r,pad.t-12);
 
-  if(history){
-    ctx.textAlign="center";
-    ctx.fillStyle="#9aa8c7";
-    ctx.fillText("歷史查詢",width/2,pad.t-12);
-  }
+  ctx.textAlign="center";
+  ctx.fillStyle="#9aa8c7";
+  ctx.fillText(
+    `${history?"歷史查詢":"即時"}｜每 ${bucketMinutes} 分鐘一點`,
+    width/2,
+    pad.t-12
+  );
 }
 
 function renderHydro(){
@@ -2032,7 +2144,7 @@ function renderHydro(){
 
   $("hydroNote").textContent=
     `${hydroTrendText()}。${hydroWarningText()}。`+
-    " 採你提供的台塑仁四橋警戒值：三級 11 m、二級 12 m、一級 13 m。"+
+    " 水位圖 Y 軸至少保留 0.10 m 跨度，避免幾公分波動被過度放大；即時與歷史查詢採相同取樣規則。"+
     " QPE 圖值是每個時間點往前1小時的滾動估計，相鄰值互相重疊，不可相加。";
 
   const src=wl?.source||{};
