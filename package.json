@@ -1,9 +1,9 @@
 {
   "name": "windyforecast-renwu",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "private": true,
   "type": "module",
-  "description": "仁武廠區即時防災雨量儀表板 - v10.3 統一水位圖尺度",
+  "description": "仁武廠區即時防災雨量儀表板 - v10.3.1 QPE右軸修正",
   "main": "server.mjs",
   "scripts": {
     "dev": "node server.mjs",

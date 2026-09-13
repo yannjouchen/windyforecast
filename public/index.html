@@ -2055,7 +2055,8 @@ function renderHydroChart(){
     ctx.stroke();
 
     const ratio=(wMax-wv)/(wMax-wMin);
-    const rv=rainMax*ratio;
+    // Top of the chart corresponds to higher QPE values; bottom is 0 mm.
+    const rv=rainMax*(1-ratio);
 
     ctx.fillStyle="#9aa8c7";
     ctx.textAlign="right";
