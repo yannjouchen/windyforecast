@@ -107,19 +107,19 @@ button.secondary{background:#263552;color:var(--text);border:1px solid var(--lin
 .hydro-query-status{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
 
 .hydro-note{margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6}
-.hydro-lag{margin-top:14px;padding:14px;border-radius:14px;background:#10192b;border:1px solid var(--line)}
-.hydro-lag-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.hydro-lag-head h3{margin:0;font-size:17px}
-.hydro-lag-badge{padding:5px 9px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--muted);white-space:nowrap}
-.hydro-lag-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:11px}
-.hydro-lag-kpi{padding:10px;border-radius:11px;background:#0d1525;border:1px solid var(--line)}
-.hydro-lag-kpi .lk-label{font-size:11px;color:var(--muted)}
-.hydro-lag-kpi .lk-value{font-size:18px;font-weight:800;margin-top:4px}
-.hydro-lag-summary{margin-top:10px;line-height:1.65}
-.hydro-lag-candidates{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
-.hydro-lag-chip{font-size:11px;padding:5px 8px;border:1px solid var(--line);border-radius:999px;color:var(--muted);background:#0d1525}
-.hydro-lag-chip.best{border-color:#8caeff;color:#dce7ff;background:#1b2945}
-.hydro-lag-method{margin-top:9px;font-size:11px;color:var(--muted);line-height:1.55}
+.hydro-gate{margin-top:14px;padding:14px;border-radius:14px;background:#10192b;border:1px solid var(--line)}
+.hydro-gate-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hydro-gate-head h3{margin:0;font-size:17px}
+.hydro-gate-badge{padding:5px 9px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--muted);white-space:nowrap}
+.hydro-gate-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:11px}
+.hydro-gate-kpi{padding:10px;border-radius:11px;background:#0d1525;border:1px solid var(--line)}
+.hydro-gate-kpi .gk-label{font-size:11px;color:var(--muted)}
+.hydro-gate-kpi .gk-value{font-size:18px;font-weight:800;margin-top:4px}
+.hydro-gate-summary{margin-top:10px;line-height:1.65}
+.hydro-gate-forecast{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.hydro-gate-chip{font-size:11px;padding:5px 8px;border:1px solid var(--line);border-radius:999px;color:var(--muted);background:#0d1525}
+.hydro-gate-chip.hit{border-color:#ff9e9e;color:#ffd9d9;background:#3a1d27}
+.hydro-gate-method{margin-top:9px;font-size:11px;color:var(--muted);line-height:1.55}
 
 details.tech-details{margin-top:16px;border:1px solid var(--line);border-radius:16px;background:#0f1728;overflow:hidden}
 details.tech-details>summary{cursor:pointer;padding:14px 16px;font-weight:800;list-style:none}
@@ -159,7 +159,7 @@ footer{margin-top:22px;color:var(--muted);font-size:13px;line-height:1.6}
 a{color:#9bbcff}
 @media(max-width:760px){
  h1{font-size:28px}.grid2,.grid4,.probgrid,.compare,.shortterm,.timeline{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}.controls button{grid-column:1/-1}
- .kpis,.kpis.obs{grid-template-columns:repeat(2,1fr)} .brief-grid,.area-grid,.public-cards,.hydro-kpis,.hydro-lag-kpis{grid-template-columns:1fr} .public-home-head{display:block} .public-home .updated{margin-top:6px;display:block} .keygrid{grid-template-columns:1fr}
+ .kpis,.kpis.obs{grid-template-columns:repeat(2,1fr)} .brief-grid,.area-grid,.public-cards,.hydro-kpis,.hydro-gate-kpis{grid-template-columns:1fr} .public-home-head{display:block} .public-home .updated{margin-top:6px;display:block} .keygrid{grid-template-columns:1fr}
  table{font-size:12px}
 }
 </style>
@@ -279,40 +279,40 @@ a{color:#9bbcff}
       水位資料載入中。QPE 圖值是每個時間點「往前 1 小時」的滾動估計，相鄰柱狀值互相重疊，不可相加。
     </div>
 
-    <div class="hydro-lag" id="hydroLagPanel">
-      <div class="hydro-lag-head">
-        <h3>降雨－水位延遲相關分析</h3>
-        <span class="hydro-lag-badge" id="hydroLagBadge">等待資料</span>
+    <div class="hydro-gate" id="hydroGatePanel">
+      <div class="hydro-gate-head">
+        <h3>水位趨勢／防水閘門建議</h3>
+        <span class="hydro-gate-badge" id="hydroGateBadge">等待資料</span>
       </div>
 
-      <div class="hydro-lag-kpis">
-        <div class="hydro-lag-kpi">
-          <div class="lk-label">最佳反應延遲</div>
-          <div class="lk-value" id="hydroLagBest">—</div>
+      <div class="hydro-gate-kpis">
+        <div class="hydro-gate-kpi">
+          <div class="gk-label">趨勢基準</div>
+          <div class="gk-value" id="hydroGateWindow">—</div>
         </div>
-        <div class="hydro-lag-kpi">
-          <div class="lk-label">Pearson r</div>
-          <div class="lk-value" id="hydroLagR">—</div>
+        <div class="hydro-gate-kpi">
+          <div class="gk-label">上升速度</div>
+          <div class="gk-value" id="hydroGateSlope">—</div>
         </div>
-        <div class="hydro-lag-kpi">
-          <div class="lk-label">關聯程度</div>
-          <div class="lk-value" id="hydroLagStrength">—</div>
+        <div class="hydro-gate-kpi">
+          <div class="gk-label">3h 趨勢推估</div>
+          <div class="gk-value" id="hydroGateForecast">—</div>
         </div>
-        <div class="hydro-lag-kpi">
-          <div class="lk-label">有效樣本</div>
-          <div class="lk-value" id="hydroLagN">—</div>
+        <div class="hydro-gate-kpi">
+          <div class="gk-label">12 m 判斷</div>
+          <div class="gk-value" id="hydroGateEta">—</div>
         </div>
       </div>
 
-      <div class="hydro-lag-summary" id="hydroLagSummary">
-        會比較 QPE 過去 1h 雨量與 0～180 分鐘後的 30 分鐘水位變化，尋找最明顯的延遲反應。
+      <div class="hydro-gate-summary" id="hydroGateSummary">
+        依最近水位歷史趨勢估算未來 3 小時；若趨勢推估會達到或超過二級警戒 12 m，顯示建議安裝防水閘門。
       </div>
 
-      <div class="hydro-lag-candidates" id="hydroLagCandidates"></div>
+      <div class="hydro-gate-forecast" id="hydroGateForecastChips"></div>
 
-      <div class="hydro-lag-method">
-        判讀限制：QPE 是往前 1 小時滾動估計，相鄰資料互相重疊；本分析只表示該時段的統計關聯，
-        不代表因果、固定反應時間，也不等於未來達 13 m 的機率。
+      <div class="hydro-gate-method">
+        計算方式：優先使用最近 120 分鐘水位做線性趨勢，資料不足時縮短至可用區間；以目前水位為起點外推 1 / 2 / 3 小時。
+        這是水位趨勢推估，不是河川水理預報。
       </div>
     </div>
     <details class="tech-details">
@@ -2044,260 +2044,196 @@ function hydroFilteredData(){
 }
 
 
-const HYDRO_LAG_CANDIDATES_MIN = [0,15,30,45,60,90,120,180];
-const HYDRO_LAG_RESPONSE_MIN = 30;
+const HYDRO_GATE_THRESHOLD_M = 12;
+const HYDRO_GATE_FORECAST_MINUTES = [60,120,180];
+const HYDRO_GATE_TREND_WINDOW_MIN = 120;
+let latestGateTrend = null;
 
-function pearsonCorrelation(xs,ys){
-  if(!Array.isArray(xs)||!Array.isArray(ys)||xs.length!==ys.length||xs.length<3){
-    return null;
-  }
+function hydroLinearTrend(points){
+  if(!Array.isArray(points) || points.length<2) return null;
 
-  const n=xs.length;
+  const t0=points[0].t;
+  const xs=points.map(p=>(p.t-t0)/(60*60*1000));
+  const ys=points.map(p=>p.v);
+  const n=points.length;
   const meanX=xs.reduce((a,b)=>a+b,0)/n;
   const meanY=ys.reduce((a,b)=>a+b,0)/n;
 
-  let sxx=0,syy=0,sxy=0;
+  let sxx=0,sxy=0,syy=0;
   for(let i=0;i<n;i++){
     const dx=xs[i]-meanX;
     const dy=ys[i]-meanY;
     sxx+=dx*dx;
-    syy+=dy*dy;
     sxy+=dx*dy;
+    syy+=dy*dy;
   }
 
-  if(sxx<=1e-12||syy<=1e-12) return null;
-  return sxy/Math.sqrt(sxx*syy);
+  if(sxx<=1e-12) return null;
+
+  const slope=sxy/sxx; // m / hour
+  const intercept=meanY-slope*meanX;
+  let sse=0;
+  for(let i=0;i<n;i++){
+    const fitted=intercept+slope*xs[i];
+    sse+=(ys[i]-fitted)**2;
+  }
+
+  const r2=syy>1e-12 ? Math.max(0,Math.min(1,1-sse/syy)) : 0;
+  const spanMinutes=(points[points.length-1].t-points[0].t)/(60*1000);
+
+  return {slope,intercept,r2,spanMinutes,n};
 }
 
-function hydroStd(values){
-  if(!values.length) return 0;
-  const mean=values.reduce((a,b)=>a+b,0)/values.length;
-  const variance=values.reduce((sum,v)=>sum+(v-mean)**2,0)/values.length;
-  return Math.sqrt(variance);
-}
+function computeHydroGateTrend(data){
+  const water=[...(data?.water||[])]
+    .filter(p=>Number.isFinite(p?.t)&&Number.isFinite(p?.v))
+    .sort((a,b)=>a.t-b.t);
 
-function hydroInterpolatedValue(series,targetTime,maxGapMs){
-  if(!Array.isArray(series)||series.length<2||!Number.isFinite(targetTime)){
-    return null;
-  }
-
-  if(targetTime<series[0].t||targetTime>series[series.length-1].t){
-    return null;
-  }
-
-  let lo=0,hi=series.length-1;
-  while(lo<=hi){
-    const mid=(lo+hi)>>1;
-    const mt=series[mid].t;
-    if(mt===targetTime) return series[mid].v;
-    if(mt<targetTime) lo=mid+1;
-    else hi=mid-1;
-  }
-
-  const right=series[lo];
-  const left=series[lo-1];
-  if(!left||!right) return null;
-
-  const leftGap=targetTime-left.t;
-  const rightGap=right.t-targetTime;
-  if(leftGap<0||rightGap<0||leftGap>maxGapMs||rightGap>maxGapMs){
-    return null;
-  }
-
-  const span=right.t-left.t;
-  if(span<=0) return left.v;
-
-  const ratio=(targetTime-left.t)/span;
-  return left.v+(right.v-left.v)*ratio;
-}
-
-function hydroCorrelationStrength(r){
-  if(!Number.isFinite(r)) return {label:"資料不足",kind:"uncertain"};
-  if(r>=0.70) return {label:"強正相關",kind:"alert"};
-  if(r>=0.45) return {label:"中度正相關",kind:"caution"};
-  if(r>=0.25) return {label:"弱正相關",kind:"caution"};
-  if(r>-0.25) return {label:"關聯不明顯",kind:"uncertain"};
-  return {label:"負相關／不符預期",kind:"uncertain"};
-}
-
-function computeHydroLagCorrelation(data){
-  const water=[...(data?.water||[])].sort((a,b)=>a.t-b.t);
-  const rain=[...(data?.rain||[])].sort((a,b)=>a.t-b.t);
-  const bucketMinutes=Number(data?.bucketMinutes)||5;
-
-  if(water.length<8||rain.length<8){
+  if(water.length<4){
     return {
       ok:false,
-      reason:"水位或 QPE 歷史點不足，暫時無法計算延遲相關。"
+      history:Boolean(data?.history),
+      reason:"可用水位趨勢點不足，暫時無法推估是否會達到 12 m。"
     };
   }
 
-  const rainValues=rain.map(x=>x.v).filter(Number.isFinite);
-  const rainMax=rainValues.length?Math.max(...rainValues):0;
-  const rainRange=rainValues.length
-    ? Math.max(...rainValues)-Math.min(...rainValues)
-    : 0;
-  const rainStd=hydroStd(rainValues);
+  const latest=water[water.length-1];
+  const cutoff=latest.t-HYDRO_GATE_TREND_WINDOW_MIN*60*1000;
+  let recent=water.filter(p=>p.t>=cutoff);
 
-  // Correlation is not meaningful when the whole selected period is nearly dry.
-  if(rainMax<0.5 || (rainRange<0.5 && rainStd<0.15)){
+  // Need enough time span for a meaningful slope. If the selected/history
+  // range is sparse, use all available points but still require 30 minutes.
+  if(recent.length<4){
+    recent=water.slice(-Math.min(12,water.length));
+  }
+
+  const trend=hydroLinearTrend(recent);
+  if(!trend || trend.spanMinutes<30){
     return {
       ok:false,
-      reason:"此區間降雨變化太小，無法可靠判斷「降雨後水位反應時間」。"
+      history:Boolean(data?.history),
+      reason:"水位資料時間跨度不足 30 分鐘，暫時無法做 12 m 趨勢推估。"
     };
   }
 
-  // QPE is a rolling 1h estimate. Sample at no less than 30-minute spacing
-  // to reduce pseudo-replication from strongly overlapping adjacent values.
-  const analysisStrideMin=Math.max(30,bucketMinutes);
-  const sampledRain=[];
-  let lastT=-Infinity;
-  for(const p of rain){
-    if(p.t-lastT>=analysisStrideMin*60*1000){
-      sampledRain.push(p);
-      lastT=p.t;
-    }
+  const current=Number(latest.v);
+  const slope=Number(trend.slope);
+  const forecasts=HYDRO_GATE_FORECAST_MINUTES.map(minutes=>({
+    minutes,
+    level:current+slope*(minutes/60)
+  }));
+
+  let etaMinutes=null;
+  if(current>=HYDRO_GATE_THRESHOLD_M){
+    etaMinutes=0;
+  }else if(slope>0){
+    const eta=(HYDRO_GATE_THRESHOLD_M-current)/slope*60;
+    if(Number.isFinite(eta) && eta>=0) etaMinutes=eta;
   }
 
-  const maxGapMs=Math.max(20,bucketMinutes*2.2)*60*1000;
-  const responseMs=HYDRO_LAG_RESPONSE_MIN*60*1000;
-  const results=[];
-
-  for(const lagMin of HYDRO_LAG_CANDIDATES_MIN){
-    const xs=[];
-    const ys=[];
-    const lagMs=lagMin*60*1000;
-
-    for(const r of sampledRain){
-      const startT=r.t+lagMs;
-      const endT=startT+responseMs;
-
-      const startLevel=hydroInterpolatedValue(
-        water,startT,maxGapMs
-      );
-      const endLevel=hydroInterpolatedValue(
-        water,endT,maxGapMs
-      );
-
-      if(
-        !Number.isFinite(startLevel)||
-        !Number.isFinite(endLevel)||
-        !Number.isFinite(r.v)
-      ) continue;
-
-      xs.push(r.v);
-      ys.push(endLevel-startLevel);
-    }
-
-    const corr=pearsonCorrelation(xs,ys);
-    if(xs.length>=8 && Number.isFinite(corr)){
-      results.push({
-        lagMin,
-        r:corr,
-        n:xs.length,
-        rainStd:hydroStd(xs),
-        levelChangeStd:hydroStd(ys)
-      });
-    }
-  }
-
-  if(!results.length){
-    return {
-      ok:false,
-      reason:"有效配對樣本不足，無法比較 0～180 分鐘的延遲相關。"
-    };
-  }
-
-  // Reject candidates whose response series is essentially flat.
-  const usable=results.filter(x=>
-    x.rainStd>=0.10 &&
-    x.levelChangeStd>=0.001
-  );
-
-  if(!usable.length){
-    return {
-      ok:false,
-      reason:"雖有降雨資料，但水位變化太小，相關係數不具判讀意義。",
-      results
-    };
-  }
-
-  const best=[...usable].sort((a,b)=>b.r-a.r)[0];
-  const strength=hydroCorrelationStrength(best.r);
+  const forecast3h=forecasts[forecasts.length-1].level;
+  const reaches12=
+    current>=HYDRO_GATE_THRESHOLD_M ||
+    (
+      Number.isFinite(etaMinutes) &&
+      etaMinutes<=HYDRO_GATE_FORECAST_MINUTES.at(-1)
+    );
 
   return {
     ok:true,
-    best,
-    strength,
-    results,
-    analysisStrideMin,
-    responseMin:HYDRO_LAG_RESPONSE_MIN
+    history:Boolean(data?.history),
+    current,
+    latestTime:latest.t,
+    trend,
+    slope,
+    forecasts,
+    forecast3h,
+    etaMinutes,
+    reaches12,
+    recommendInstall:reaches12
   };
 }
 
-function renderHydroLagAnalysis(data){
-  if(!$("hydroLagPanel")) return;
+function renderHydroGateTrend(data){
+  if(!$("hydroGatePanel")) return;
 
-  const result=computeHydroLagCorrelation(data);
-  const badge=$("hydroLagBadge");
-  const bestEl=$("hydroLagBest");
-  const rEl=$("hydroLagR");
-  const strengthEl=$("hydroLagStrength");
-  const nEl=$("hydroLagN");
-  const summary=$("hydroLagSummary");
-  const candidates=$("hydroLagCandidates");
+  const result=computeHydroGateTrend(data);
+  if(!data?.history) latestGateTrend=result.ok ? result : null;
 
-  ["good","caution","alert","uncertain"].forEach(c=>{
-    badge.classList.remove(c);
-  });
+  const badge=$("hydroGateBadge");
+  const windowEl=$("hydroGateWindow");
+  const slopeEl=$("hydroGateSlope");
+  const forecastEl=$("hydroGateForecast");
+  const etaEl=$("hydroGateEta");
+  const summary=$("hydroGateSummary");
+  const chips=$("hydroGateForecastChips");
+
+  ["good","caution","alert","uncertain"].forEach(c=>badge.classList.remove(c));
 
   if(!result.ok){
-    bestEl.textContent="—";
-    rEl.textContent="—";
-    strengthEl.textContent="資料不足";
-    nEl.textContent="—";
-    badge.textContent="暫不判讀";
+    windowEl.textContent="—";
+    slopeEl.textContent="—";
+    forecastEl.textContent="—";
+    etaEl.textContent="—";
+    badge.textContent="資料不足";
     badge.classList.add("uncertain");
     summary.textContent=result.reason;
-    candidates.innerHTML=(result.results||[])
-      .map(x=>
-        `<span class="hydro-lag-chip">${x.lagMin}m r=${x.r>=0?"+":""}${x.r.toFixed(2)}</span>`
-      ).join("");
+    chips.innerHTML="";
     return;
   }
 
-  const {best,strength}=result;
-  bestEl.textContent=`${best.lagMin} 分鐘`;
-  rEl.textContent=`${best.r>=0?"+":""}${best.r.toFixed(2)}`;
-  strengthEl.textContent=strength.label;
-  nEl.textContent=`${best.n} 組`;
-  badge.textContent=strength.label;
-  badge.classList.add(strength.kind);
+  const span=Math.round(result.trend.spanMinutes);
+  const slope=result.slope;
+  const eta=result.etaMinutes;
 
-  if(best.r>=0.25){
-    const lagText=best.lagMin===0
-      ? "幾乎同步"
-      : `約 ${best.lagMin} 分鐘後`;
-    summary.innerHTML=
-      `此區間中，<strong>QPE 過去1h雨量</strong>與`+
-      `<strong>${lagText}起算的 ${result.responseMin} 分鐘水位變化</strong>`+
-      `相關最高（r=${best.r>=0?"+":""}${best.r.toFixed(2)}）。`+
-      `可解讀為較大降雨後，水位較常在這個時間尺度出現上升反應；`+
-      `但不能視為固定延遲或因果證明。`;
+  windowEl.textContent=`${span} 分鐘`;
+  slopeEl.textContent=`${slope>=0?"+":""}${slope.toFixed(3)} m/h`;
+  forecastEl.textContent=`${result.forecast3h.toFixed(2)} m`;
+
+  if(result.current>=HYDRO_GATE_THRESHOLD_M){
+    etaEl.textContent="已達 12 m";
+  }else if(Number.isFinite(eta) && eta<=180){
+    etaEl.textContent=`約 ${Math.max(1,Math.round(eta))} 分鐘`;
   }else{
-    summary.textContent=
-      `目前最佳 r=${best.r.toFixed(2)}，仍未達明顯正相關。`+
-      `這個查詢區間不適合用單一延遲時間解釋水位變化。`;
+    etaEl.textContent="3h 內未達";
   }
 
-  candidates.innerHTML=result.results
-    .map(x=>{
-      const cls=x.lagMin===best.lagMin
-        ? "hydro-lag-chip best"
-        : "hydro-lag-chip";
-      return `<span class="${cls}">${x.lagMin}m r=${x.r>=0?"+":""}${x.r.toFixed(2)} · n=${x.n}</span>`;
-    })
-    .join("");
+  chips.innerHTML=result.forecasts.map(x=>{
+    const hit=x.level>=HYDRO_GATE_THRESHOLD_M;
+    return `<span class="hydro-gate-chip${hit?" hit":""}">+${x.minutes/60}h ${x.level.toFixed(2)} m</span>`;
+  }).join("");
+
+  if(result.recommendInstall){
+    badge.textContent=result.history ? "歷史回放：應觸發" : "建議安裝";
+    badge.classList.add("alert");
+
+    if(result.history){
+      summary.innerHTML=
+        `依該歷史區間末端最近 <strong>${span} 分鐘</strong>水位趨勢，`+
+        `推估會達到或超過 <strong>12 m（二級警戒）</strong>；`+
+        `依目前規則，當時應顯示<strong>建議安裝防水閘門</strong>。`;
+    }else{
+      const etaText=result.current>=HYDRO_GATE_THRESHOLD_M
+        ? "目前水位已達 12 m"
+        : `依目前趨勢約 ${Math.max(1,Math.round(eta))} 分鐘後可能達 12 m`;
+      summary.innerHTML=
+        `<strong>${etaText}</strong>。`+
+        `依設定規則：<strong>建議安裝防水閘門</strong>。`;
+    }
+    return;
+  }
+
+  badge.textContent=result.history ? "歷史回放：未觸發" : "目前未觸發";
+  badge.classList.add("good");
+
+  if(slope<=0){
+    summary.textContent=
+      `最近 ${span} 分鐘水位沒有上升趨勢；以目前趨勢外推 3 小時為 ${result.forecast3h.toFixed(2)} m，未達 12 m。`;
+  }else{
+    summary.textContent=
+      `最近 ${span} 分鐘水位上升速度約 ${slope.toFixed(3)} m/h；`+
+      `以目前趨勢外推 3 小時約 ${result.forecast3h.toFixed(2)} m，尚未達 12 m，因此目前不觸發安裝建議。`;
+  }
 }
 
 function renderHydroChart(){
@@ -2314,7 +2250,7 @@ function renderHydroChart(){
   ctx.clearRect(0,0,width,height);
 
   const {water,rain,cutoff,end,history,bucketMinutes}=hydroFilteredData();
-  renderHydroLagAnalysis({water,rain,cutoff,end,history,bucketMinutes});
+  renderHydroGateTrend({water,rain,cutoff,end,history,bucketMinutes});
   const pad={l:58,r:54,t:30,b:42};
   const plotW=width-pad.l-pad.r;
   const plotH=height-pad.t-pad.b;
@@ -2497,6 +2433,14 @@ function setPublicCard(id,kind){
 function publicFloodAttention(){
   const waterWarning=hydroWarningState();
   const water1h=Number(latestHydro?.waterlevel?.change?.hour_1);
+
+  if(latestGateTrend?.recommendInstall){
+    const eta=Number(latestGateTrend.etaMinutes);
+    const reason=latestGateTrend.current>=HYDRO_GATE_THRESHOLD_M
+      ? "台塑仁四橋水位已達 12 m，建議安裝防水閘門"
+      : `水位趨勢推估約 ${Math.max(1,Math.round(eta))} 分鐘後可能達 12 m，建議安裝防水閘門`;
+    return {kind:"alert",level:"高",reason};
+  }
 
   if(waterWarning.code==="level1"){
     return {kind:"alert",level:"高",reason:"台塑仁四橋水位已達一級警戒（13 m）"};
@@ -2730,8 +2674,16 @@ function renderPublicHome(){
     const gapText=waterWarning.code==="normal" && Number.isFinite(waterWarning.distance)
       ? `｜距三級 ${waterWarning.distance.toFixed(2)} m`
       : "";
-    $("publicWaterSub").textContent=`${trendText}${gapText}`;
-    setPublicCard("publicWaterCard",waterWarning.kind);
+    if(latestGateTrend?.recommendInstall){
+      const eta=Number(latestGateTrend.etaMinutes);
+      $("publicWaterSub").textContent=latestGateTrend.current>=HYDRO_GATE_THRESHOLD_M
+        ? "已達 12 m｜建議安裝防水閘門"
+        : `趨勢推估約 ${Math.max(1,Math.round(eta))} 分鐘後達 12 m｜建議安裝防水閘門`;
+      setPublicCard("publicWaterCard","alert");
+    }else{
+      $("publicWaterSub").textContent=`${trendText}${gapText}`;
+      setPublicCard("publicWaterCard",waterWarning.kind);
+    }
   }else{
     $("publicWaterMain").textContent="等待水位資料";
     $("publicWaterSub").textContent="三級 11 m｜二級 12 m｜一級 13 m。";
@@ -2743,7 +2695,14 @@ function renderPublicHome(){
   let headline="目前雨勢平穩，暫無明顯廣泛強雨訊號";
   let reason="測站、QPE 與短期模式目前沒有顯示仁武周邊正在發生廣泛強降雨。";
 
-  if(nowKind==="alert"){
+  if(latestGateTrend?.recommendInstall){
+    headlineKind="alert";
+    headline="水位趨勢可能達二級警戒，建議安裝防水閘門";
+    const eta=Number(latestGateTrend.etaMinutes);
+    reason=latestGateTrend.current>=HYDRO_GATE_THRESHOLD_M
+      ? "台塑仁四橋水位已達 12 m。"
+      : `依最近水位趨勢，約 ${Math.max(1,Math.round(eta))} 分鐘後可能達 12 m。`;
+  }else if(nowKind==="alert"){
     headlineKind="alert";
     headline="附近目前已有明顯降雨，先看雷達與即時雨量";
     reason="即時觀測已出現較強雨量訊號；這時候觀測資料比數值模式更重要。";

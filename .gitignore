@@ -16,4 +16,3 @@ data/.wrf-*
 .wrf_tmp/
 __pycache__/
 *.pyc
-data/*.json
