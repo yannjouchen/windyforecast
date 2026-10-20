@@ -1,9 +1,9 @@
 {
   "name": "windyforecast-renwu",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "private": true,
   "type": "module",
-  "description": "仁武廠區即時防災雨量儀表板 - v10.5 水位趨勢防水閘門建議",
+  "description": "仁武廠區即時防災雨量儀表板 - v10.6 高層防水閘門決策首頁",
   "main": "server.mjs",
   "scripts": {
     "dev": "node server.mjs",
