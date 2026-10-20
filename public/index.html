@@ -2192,12 +2192,17 @@ function computeHydroGateTrend(data){
 
   const latest=water[water.length-1];
   const cutoff=latest.t-HYDRO_GATE_TREND_WINDOW_MIN*60*1000;
-  let recent=water.filter(p=>p.t>=cutoff);
+  const recent=water.filter(p=>p.t>=cutoff);
 
-  // Need enough time span for a meaningful slope. If the selected/history
-  // range is sparse, use all available points but still require 30 minutes.
+  // v10.6.1: 只使用最近 120 分鐘內的資料。
+  // 若這個視窗內點數不足，不再向前抓取更舊資料，避免把 10～20 小時
+  // 的緩慢變化誤當成短期 1～3 小時水位趨勢。
   if(recent.length<4){
-    recent=water.slice(-Math.min(12,water.length));
+    return {
+      ok:false,
+      history:Boolean(data?.history),
+      reason:"最近 120 分鐘有效水位點不足，暫時不做 3 小時水位外推。"
+    };
   }
 
   const trend=hydroLinearTrend(recent);
@@ -2205,7 +2210,7 @@ function computeHydroGateTrend(data){
     return {
       ok:false,
       history:Boolean(data?.history),
-      reason:"水位資料時間跨度不足 30 分鐘，暫時無法做 12 m 趨勢推估。"
+      reason:"最近 120 分鐘水位資料時間跨度不足 30 分鐘，暫時不做 3 小時水位外推。"
     };
   }
 
@@ -2689,7 +2694,10 @@ function executiveDecisionState(){
   const trend=latestGateTrend?.ok ? latestGateTrend : null;
   const slope=Number(trend?.slope);
   const forecast3h=Number(trend?.forecast3h);
-  const eta=Number(trend?.etaMinutes);
+  // Number(null) 會變成 0；etaMinutes=null 代表「目前趨勢不會到 12 m」，
+  // 不能被誤判成 0 分鐘。
+  const etaRaw=trend?.etaMinutes;
+  const eta=etaRaw==null ? NaN : Number(etaRaw);
 
   let qpe1h=Number(latestHydro?.qpe_current?.radius_10km_mean_1h_mm);
   if(!Number.isFinite(qpe1h)) qpe1h=Number(latestQpePast1h);
