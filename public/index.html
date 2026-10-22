@@ -83,17 +83,28 @@ button.secondary{background:#263552;color:var(--text);border:1px solid var(--lin
 .exec-rain-card{padding:12px 14px;border-radius:14px;background:#11192b;border:1px solid var(--line)}
 .exec-rain-card .er-label{font-size:12px;color:var(--muted)}
 .exec-rain-card .er-value{font-size:19px;font-weight:800;margin-top:4px}
-.exec-scale{margin-top:14px;padding:14px;border-radius:14px;background:#0f1728;border:1px solid var(--line)}
-.exec-scale-head{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:12px;color:var(--muted)}
-.exec-scale-bar{position:relative;height:16px;border-radius:999px;background:linear-gradient(90deg,#173828 0%,#173828 81.5%,#554a20 81.5%,#554a20 88.9%,#5a3024 88.9%,#5a3024 96.3%,#5b2528 96.3%,#5b2528 100%);margin-top:12px;border:1px solid #43516f}
-.exec-scale-marker{position:absolute;top:-6px;width:4px;height:28px;border-radius:3px;background:#eef3ff;box-shadow:0 0 0 2px #0b1020;transform:translateX(-50%);left:0%}
-.exec-scale-labels{position:relative;height:30px;margin-top:4px;font-size:11px;color:var(--muted)}
-.exec-scale-labels span{position:absolute;transform:translateX(-50%);white-space:nowrap}
-.exec-scale-labels .l11{left:81.5%}.exec-scale-labels .l12{left:88.9%}.exec-scale-labels .l13{left:96.3%}
-.exec-summary{margin-top:12px;padding:14px;border-radius:14px;background:#11192b;line-height:1.7}
+.exec-water-panel{display:grid;grid-template-columns:minmax(270px,340px) 1fr;gap:14px;margin-top:14px;align-items:stretch}
+.exec-scale{padding:15px 16px;border-radius:16px;background:#0f1728;border:1px solid var(--line);min-height:350px}
+.exec-scale-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;font-size:12px;color:var(--muted)}
+.exec-scale-head strong{font-size:14px;color:#eef3ff}
+.exec-gauge-stage{display:flex;justify-content:center;align-items:center;min-height:285px;padding:18px 74px 8px 28px}
+.exec-scale-bar{position:relative;width:52px;height:248px;border-radius:18px;background:#0d1628;border:1px solid #43516f;overflow:visible;box-shadow:inset 0 0 18px rgba(0,0,0,.18)}
+.exec-water-fill{position:absolute;left:0;right:0;bottom:0;height:0;border-radius:17px 17px 17px 17px;background:#3b82f6;box-shadow:none;transition:height .3s ease;z-index:1;overflow:hidden}
+.exec-scale-marker{position:absolute;left:-12px;right:-12px;height:3px;border-radius:3px;background:#f3f6ff;box-shadow:0 0 0 2px #0b1020,0 0 10px rgba(255,255,255,.3);bottom:0%;z-index:4;transition:bottom .3s ease}
+.exec-scale-marker::before{content:"";position:absolute;left:-1px;top:-5px;width:12px;height:12px;border-radius:50%;background:#f3f6ff;box-shadow:0 0 0 3px #0b1020}
+.exec-scale-marker-text{position:absolute;left:72px;top:50%;transform:translateY(-50%);padding:5px 8px;border-radius:8px;background:#18233a;border:1px solid #425276;color:#fff;font-size:11px;font-weight:800;white-space:nowrap}
+.exec-scale-line{position:absolute;left:100%;width:88px;border-top:1px dashed rgba(214,225,255,.38);z-index:3}
+.exec-scale-line span{position:absolute;left:8px;top:-10px;font-size:11px;color:var(--muted);white-space:nowrap;background:#0f1728;padding:0 3px}
+.exec-scale-line.l11{bottom:81.5%}.exec-scale-line.l12{bottom:88.9%}.exec-scale-line.l13{bottom:96.3%}
+.exec-scale-line.l12 span{color:var(--muted);font-weight:800}
+.exec-scale-line.l13 span{color:var(--muted)}
+.exec-scale-bottom{position:absolute;right:calc(100% + 10px);bottom:-7px;font-size:10px;color:#71809e;white-space:nowrap}
+.exec-decision-side{display:flex;flex-direction:column;gap:10px;min-width:0}
+.exec-summary{margin:0;padding:16px 17px;border-radius:16px;background:#11192b;border:1px solid var(--line);line-height:1.75;flex:1}
 .exec-summary strong{color:#fff}
-.decision-legend{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
-.decision-legend div{padding:9px 10px;border-radius:11px;background:#0f1728;border:1px solid var(--line);font-size:12px;line-height:1.45}
+.exec-side-title{font-size:12px;color:var(--muted);font-weight:800;letter-spacing:.06em;margin-bottom:5px}
+.decision-legend{display:grid;grid-template-columns:1fr;gap:7px;margin:0}
+.decision-legend div{padding:10px 12px;border-radius:12px;background:#0f1728;border:1px solid var(--line);font-size:12px;line-height:1.5}
 .decision-legend .green{border-color:#315b4a}.decision-legend .yellow{border-color:#7a6330}.decision-legend .red{border-color:#7d4040}
 .technical-heading{margin:26px 0 8px;padding-top:6px;border-top:1px solid var(--line)}
 .technical-heading h2{font-size:22px;margin:15px 0 4px}.technical-heading .muted{font-size:13px}
@@ -206,6 +217,7 @@ a{color:#9bbcff}
 @media(max-width:760px){
  h1{font-size:28px}.grid2,.grid4,.probgrid,.compare,.shortterm,.timeline{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}.controls button{grid-column:1/-1}
  .kpis,.kpis.obs{grid-template-columns:repeat(2,1fr)} .brief-grid,.area-grid,.public-cards,.hydro-kpis,.hydro-gate-kpis,.exec-kpis,.exec-rain,.decision-legend{grid-template-columns:1fr} .public-home-head,.executive-head{display:block} .public-home .updated,.executive-home .updated{margin-top:6px;display:block} .keygrid{grid-template-columns:1fr}
+ .exec-water-panel{grid-template-columns:1fr}.exec-scale{min-height:auto}.exec-gauge-stage{min-height:300px;padding-right:82px}.exec-summary{min-height:auto}
  table{font-size:12px}
 }
 </style>
@@ -271,27 +283,38 @@ a{color:#9bbcff}
       </div>
     </div>
 
-    <div class="exec-scale" aria-label="目前水位與 11、12、13 公尺警戒線">
-      <div class="exec-scale-head">
-        <strong>目前水位距警戒線</strong>
-        <span id="execScaleText">等待水位資料</span>
+    <div class="exec-water-panel">
+      <div class="exec-scale" aria-label="目前水位與 11、12、13 公尺警戒線">
+        <div class="exec-scale-head">
+          <strong>目前水位距警戒線</strong>
+          <span id="execScaleText">等待水位資料</span>
+        </div>
+        <div class="exec-gauge-stage">
+          <div class="exec-scale-bar">
+            <div class="exec-water-fill" id="execWaterFill"></div>
+            <div class="exec-scale-line l11"><span>11 m｜三級</span></div>
+            <div class="exec-scale-line l12"><span>12 m｜決策</span></div>
+            <div class="exec-scale-line l13"><span>13 m｜一級</span></div>
+            <div class="exec-scale-marker" id="execWaterMarker">
+              <span class="exec-scale-marker-text" id="execWaterMarkerText">等待水位</span>
+            </div>
+            <span class="exec-scale-bottom">0 m</span>
+          </div>
+        </div>
       </div>
-      <div class="exec-scale-bar"><span class="exec-scale-marker" id="execWaterMarker"></span></div>
-      <div class="exec-scale-labels">
-        <span class="l11">11 m 三級</span>
-        <span class="l12">12 m 決策</span>
-        <span class="l13">13 m 一級</span>
+
+      <div class="exec-decision-side">
+        <div class="exec-summary" id="execSummary">
+          <div class="exec-side-title">決策摘要</div>
+          <strong>判斷依據：</strong>等待水位與降雨資料。
+        </div>
+
+        <div class="decision-legend" aria-label="防水閘門決策分級">
+          <div class="green"><strong>綠｜暫不需安裝</strong><br>3 小時水位趨勢未達 12 m，且沒有需要提前準備的水位／降雨組合。</div>
+          <div class="yellow"><strong>黃｜準備安裝</strong><br>尚未推估達 12 m，但水位接近警戒或水位上升且降雨訊號明顯，先完成準備。</div>
+          <div class="red"><strong>紅｜建議安裝</strong><br>目前已達 12 m，或依最近水位趨勢推估 3 小時內可能達 12 m。</div>
+        </div>
       </div>
-    </div>
-
-    <div class="exec-summary" id="execSummary">
-      <strong>判斷依據：</strong>等待水位與降雨資料。
-    </div>
-
-    <div class="decision-legend" aria-label="防水閘門決策分級">
-      <div class="green"><strong>綠｜暫不需安裝</strong><br>3 小時水位趨勢未達 12 m，且沒有需要提前準備的水位／降雨組合。</div>
-      <div class="yellow"><strong>黃｜準備安裝</strong><br>尚未推估達 12 m，但水位接近警戒或水位上升且降雨訊號明顯，先完成準備。</div>
-      <div class="red"><strong>紅｜建議安裝</strong><br>目前已達 12 m，或依最近水位趨勢推估 3 小時內可能達 12 m。</div>
     </div>
   </section>
 
@@ -2785,12 +2808,16 @@ function renderPublicHome(){
     $("execGap12").textContent=gap>0 ? `${gap.toFixed(2)} m` : gap===0 ? "已達 12 m" : `超過 ${Math.abs(gap).toFixed(2)} m`;
 
     const pct=Math.max(0,Math.min(100,current/13.5*100));
-    $("execWaterMarker").style.left=`${pct.toFixed(1)}%`;
+    $("execWaterMarker").style.bottom=`${pct.toFixed(1)}%`;
+    if($("execWaterFill")) $("execWaterFill").style.height=`${pct.toFixed(1)}%`;
+    if($("execWaterMarkerText")) $("execWaterMarkerText").textContent=`目前 ${current.toFixed(2)} m`;
     $("execScaleText").textContent=`目前 ${current.toFixed(2)} m｜12 m 決策基準`;
   }else{
     $("execWaterLevel").textContent="—";
     $("execGap12").textContent="—";
-    $("execWaterMarker").style.left="0%";
+    $("execWaterMarker").style.bottom="0%";
+    if($("execWaterFill")) $("execWaterFill").style.height="0";
+    if($("execWaterMarkerText")) $("execWaterMarkerText").textContent="等待水位";
     $("execScaleText").textContent="等待水位資料";
   }
 
@@ -2841,7 +2868,7 @@ function renderPublicHome(){
     Number.isFinite(d.qpe1h)?`過去1h QPE ${d.qpe1h.toFixed(1)} mm`:null,
     Number.isFinite(d.rain3h)?`未來3h MSM ${d.rain3h.toFixed(1)} mm`:null
   ].filter(Boolean).join("；") || "降雨資料尚未完整";
-  $("execSummary").innerHTML=`<strong>判斷依據：</strong>${waterPhrase}；${forecastPhrase}；${rainPhrase}。<br><strong>行動：</strong>${d.status}${d.kind==="caution"?"，先完成安裝準備並提高監看頻率":d.kind==="alert"?"，建議依內部防災程序啟動安裝流程":"，維持監看"}。`;
+  $("execSummary").innerHTML=`<div class="exec-side-title">決策摘要</div><strong>判斷依據：</strong>${waterPhrase}；${forecastPhrase}；${rainPhrase}。<br><strong>行動：</strong>${d.status}${d.kind==="caution"?"，先完成安裝準備並提高監看頻率":d.kind==="alert"?"，建議依內部防災程序啟動安裝流程":"，維持監看"}。`;
 
   latestPublicHomeUpdatedAt=new Date();
   $("publicUpdated").textContent=
